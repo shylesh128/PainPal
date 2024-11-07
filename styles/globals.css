@@ -1,0 +1,277 @@
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: #1d1d1d;
+}
+
+input {
+  color: #fff !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #ffa31a;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+}
+
+/* styles/globals.css */
+:root {
+  --background-color: #1b1b1b;
+  --text-color: #ffffff;
+  --primary-color: #ffa31a;
+  --secondary-color: #292929;
+  --button-color: #808080;
+  --button-text-color: #ffffff;
+}
+
+body {
+  font-family: "Arial", sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+#app-bar {
+  background-color: var(--background-color);
+  text-align: center;
+  color: var(--primary-color);
+}
+
+#main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+#side-app {
+  width: 20%;
+  background-color: var(--background-color);
+  padding: 20px;
+}
+
+.pain {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-color);
+}
+
+.hub {
+  font-weight: 700;
+  color: var(--background-color);
+  background-color: var(--primary-color);
+  border-radius: 4px;
+}
+
+#chat-section {
+  height: 90vh;
+  flex: 1;
+  background-color: var(--secondary-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#messages {
+  list-style-type: none;
+  margin: 0;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#messages li {
+  padding: 2px;
+  border-radius: 8px;
+  color: var(--text-color);
+}
+
+.username {
+  font-weight: 300;
+  margin-right: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#messages li:hover .username {
+  opacity: 1;
+}
+
+.timeStamp {
+  font-size: 0.5rem;
+  color: #808080;
+  margin-left: 1rem;
+}
+
+#form {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background-color: var(--background-color);
+}
+
+#m {
+  flex: 1;
+  padding: 20px;
+  border: none;
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+button {
+  width: 80px;
+  padding: 10px;
+  border: none;
+  background-color: var(--button-color);
+  color: var(--button-text-color);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.message-container {
+  display: flex;
+  flex-direction: column;
+  align-items: baseline;
+}
+
+.message-container-2 {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.message-bubble {
+  color: #333;
+  padding: 10px 15px;
+  border-radius: 20px;
+  max-width: 100%;
+  margin-bottom: 10px;
+  display: inline-block;
+  clear: both;
+  overflow: hidden; /* Added overflow */
+  word-wrap: break-word; /* Added word-wrap */
+}
+
+.sender-bubble {
+  background-color: #dcffb4;
+  float: right;
+  border-top-right-radius: 5px;
+}
+
+.receiver-bubble {
+  background-color: #fff;
+  float: left;
+  border-top-left-radius: 5px;
+}
+
+.sender-anchor {
+  font-size: 0.8em;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.receiver-anchor {
+  display: none; /* Hide receiver anchor */
+}
+
+.username {
+  font-weight: 300;
+  font-size: 0.7rem;
+  opacity: 2;
+}
+
+.timeStamp {
+  font-size: 0.7rem;
+  color: #808080;
+}
+
+.message-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.currentUserMessage {
+  background-color: transparent;
+  color: #292929;
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.otherUserMessage {
+  background-color: transparent;
+  color: #ffffff;
+  display: flex;
+  justify-content: flex-start;
+  align-items: baseline;
+}
+
+/* App.css */
+.loadingScreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1d1d1d; /* Same as body background color */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.loader {
+  border: 8px solid #f3f3f3; /* Lighter color for loader border */
+  border-top: 8px solid #ffa31a; /* Primary color for loader */
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  #side-app {
+    display: none;
+  }
+}
