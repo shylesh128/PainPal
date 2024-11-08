@@ -1,4 +1,7 @@
-import { createTheme } from "@mui/material";
+import { Layout } from "@/components/layout/Layout.component";
+import { UserProvider } from "@/services/userContext";
+import "@/styles/globals.css";
+import { ThemeProvider, createTheme } from "@mui/material";
 /* slick-carousel styles */
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -80,5 +83,13 @@ const theme = createTheme({
 });
 
 export default function App({ Component, pageProps }) {
-  return <Component {...pageProps} />;
+  return (
+    <UserProvider>
+      <ThemeProvider theme={theme}>
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </ThemeProvider>
+    </UserProvider>
+  );
 }

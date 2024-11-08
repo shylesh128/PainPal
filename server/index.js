@@ -11,6 +11,7 @@ require("dotenv").config();
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
 
+const socketModule = require("./socket");
 const { mongoConnect } = require("./utils/service");
 const path = require("path");
 const PORT = process.env.PORT;
@@ -31,9 +32,17 @@ app
     server.use(cookieParser());
     server.use(express.text());
 
+    const io = socketModule(httpServer);
+
     const version = "/api/v1";
 
     server.use(`${version}/`, require("./routes/statusRoutes"));
+    server.use(`${version}/auth`, require("./routes/authRoutes"));
+    server.use(`${version}/tweets`, require("./routes/tweetRoutes"));
+    server.use(`${version}/users`, require("./routes/userRoutes"));
+    server.use(`${version}/other`, require("./routes/otherRoutes"));
+
+    server.use(`/api/v2/tweets`, require("./routes/testRoutes"));
 
     server.get("*", (req, res) => {
       return handle(req, res);
