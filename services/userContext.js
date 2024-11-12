@@ -15,7 +15,6 @@ export const UserProvider = ({ children }) => {
   const version = "v1";
 
   const isLoggedIn = async () => {
-    setLoading(true);
     try {
       const response = await axios.post(
         `/api/${version}/auth/isLoggedIn`,
@@ -28,12 +27,8 @@ export const UserProvider = ({ children }) => {
       );
       if (response.status === 200) {
         setUser(response.data.user);
-        setLoading(false);
-      } else {
-        setLoading(false);
       }
     } catch (error) {
-      console.error("Login failed:", error);
       router.push("/login");
       setLoading(false);
     }

@@ -1,16 +1,12 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
-import {
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Snackbar,
-  Alert,
-} from "@mui/material";
+import { useState, useEffect, useContext, useRef } from "react";
+import { Box } from "@mui/material";
+import { TweetService } from "../services/TweetService";
+import { SnackbarNotification } from "../components/Notification/SnackbarNotification";
+import { TweetList } from "../components/Tweet/TweetList";
+import { TweetInput } from "../components/Tweet/TweetInput";
 import { UserContext } from "../services/userContext";
-import Post from "../components/Post";
 
-const Home = () => {
+const Tweet = () => {
   const { user, fetchTweets, addPost } = useContext(UserContext);
 
   const [page, setPage] = useState(1);
@@ -20,26 +16,35 @@ const Home = () => {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const chatContainerRef = useRef(null);
 
+  const tweetService = new TweetService(fetchTweets, addPost);
+
   const fetchNewTweets = async () => {
-    const res = await fetchTweets(page);
+    setLoading(true);
+    const res = await tweetService.fetchTweets(page);
     setTweets([...tweets, ...res]);
+    setLoading(false);
   };
 
-  const addNewTweet = async () => {
+  const addNewTweet = async (newPost, selectedImages) => {
     if (newPost.trim() !== "") {
       if (newPost.length < 10) {
         setOpenSnackbar(true);
         return;
       }
 
-      const newPostObject = {
-        tweet: newPost,
-        name: user.name,
-        email: user.email,
-      };
+      // Create FormData object
+      const formData = new FormData();
+      formData.append("tweet", newPost);
+      formData.append("name", user.name);
+      formData.append("email", user.email);
+
+      // Append each image file to the FormData object
+      Array.from(selectedImages).forEach((file) => {
+        formData.append("files", file);
+      });
 
       try {
-        const response = await addPost(newPostObject);
+        const response = await tweetService.addPost(formData);
         setTweets([response, ...tweets]);
         setNewPost("");
       } catch (error) {
@@ -47,12 +52,10 @@ const Home = () => {
       }
     }
   };
-
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
       return;
     }
-
     setOpenSnackbar(false);
   };
 
@@ -77,19 +80,10 @@ const Home = () => {
 
   return (
     <>
-      <Snackbar
+      <SnackbarNotification
         open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity="warning"
-          sx={{ width: "100%" }}
-        >
-          Please enter at least 10 characters for your tweet.
-        </Alert>
-      </Snackbar>
+        handleClose={handleCloseSnackbar}
+      />
       <Box
         sx={{
           display: "flex",
@@ -101,96 +95,15 @@ const Home = () => {
         }}
         ref={chatContainerRef}
       >
-        <Box
-          sx={{
-            width: "100%",
-            marginBottom: "20px",
-            padding: "2rem 0",
-            overflow: "auto",
-          }}
-        >
-          {loading ? (
-            <Typography
-              style={{
-                width: "100%",
-                textAlign: "center",
-                color: "#fff",
-                fontSize: "20px",
-                marginTop: "20px",
-                fontWeight: "bold",
-              }}
-            >
-              Loading...
-            </Typography>
-          ) : (
-            <div>
-              {tweets.map((tweet, index) => (
-                <Post
-                  key={index}
-                  text={tweet.tweet}
-                  username={tweet.name}
-                  timestamp={tweet.timeStamp}
-                />
-              ))}
-            </div>
-          )}
-
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              width: "100%",
-            }}
-          >
-            <Button onClick={loadMore} sx={{ width: "250px" }}>
-              Load More
-            </Button>
-          </Box>
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            position: "fixed",
-            bottom: 0,
-            width: "100%",
-            padding: "1rem",
-          }}
-        >
-          <TextField
-            fullWidth
-            placeholder="What's happening?"
-            variant="outlined"
-            value={newPost}
-            onChange={(e) => setNewPost(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                addNewTweet();
-              }
-            }}
-            sx={{
-              color: "white",
-              background: "#333",
-
-              "& .MuiOutlinedInput-notchedOutline": {
-                borderColor: "#555",
-              },
-              "&:hover .MuiOutlinedInput-notchedOutline": {
-                borderColor: "#555",
-              },
-            }}
-            InputProps={{
-              style: {
-                color: "white",
-                placeholder: "white",
-              },
-            }}
-          />
-        </Box>
+        <TweetList loading={loading} tweets={tweets} loadMore={loadMore} />
+        <TweetInput
+          newPost={newPost}
+          setNewPost={setNewPost}
+          addNewTweet={addNewTweet}
+        />
       </Box>
     </>
   );
 };
 
-export default Home;
+export default Tweet;
