@@ -1,9 +1,8 @@
 import React from "react";
+import { localizeTime } from "../utils/localize";
 
 const MessageBubble = ({ message, sender, timestamp }) => {
   const bubbleClass = sender ? "sender-bubble" : "receiver-bubble";
-
-  console.log(timestamp);
 
   // Function to split the message into lines with max 20 characters each
   const splitMessageIntoLines = (message) => {
@@ -47,7 +46,7 @@ const MessageBubble = ({ message, sender, timestamp }) => {
             textAlign: sender ? "end" : "end",
           }}
         >
-          {timestamp}
+          {localizeTime(timestamp)}
         </div>
       </div>
     </div>

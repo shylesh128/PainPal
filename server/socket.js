@@ -4,6 +4,8 @@ const User = require("./models/userModel");
 const jwt = require("jsonwebtoken");
 const Message = require("./models/messageModel");
 const connectionModel = require("./models/connectionModel");
+const authenticateSocket = require("./middlewares/authenticateSocket");
+const ChatMessage = require("./models/ChatMessage");
 const secretKey =
   "746d3de964867c223d8a97948f22987e66566d7b73e65f0b23221ac8174b986e";
 
@@ -149,6 +151,91 @@ module.exports = (httpServer) => {
     }
     return null;
   }
+
+  const globalNamespace = io.of("/api/chat/global");
+  const globals = {}; // Store multiple global rooms and their users
+  const MAX_USERS = 50;
+
+  globalNamespace.use(authenticateSocket);
+
+  globalNamespace.on("connection", async (socket) => {
+    try {
+      const user = socket.user;
+      const userId = user._id.toString();
+      const socketId = socket.id;
+
+      let currentGlobalId;
+
+      // If the user has already been assigned a global chat room
+      if (user.globalId && globals[user.globalId]) {
+        currentGlobalId = user.globalId;
+      } else {
+        // Find a global room with available space
+        let assigned = false;
+        for (const globalId in globals) {
+          if (globals[globalId].length < MAX_USERS) {
+            currentGlobalId = globalId;
+            globals[globalId].push({ userId, name: user.name, socketId });
+            assigned = true;
+            break;
+          }
+        }
+
+        // If no room with available space, create a new global room
+        if (!assigned) {
+          currentGlobalId = `global-${Date.now()}`;
+          globals[currentGlobalId] = [{ userId, name: user.name, socketId }];
+        }
+
+        // Update user document with the assigned globalId
+        user.globalId = currentGlobalId;
+        await user.save();
+      }
+
+      // Emit the updated user count for the specific global room
+      globalNamespace.emit("userCount", globals[currentGlobalId].length);
+
+      socket.join(currentGlobalId);
+
+      socket.on("message", (msg) => {
+        globalNamespace.to(currentGlobalId).emit("message", {
+          user: user.name,
+          text: msg,
+          time: new Date(),
+        });
+      });
+
+      socket.on("disconnect", async () => {
+        // Remove the user from the global room
+        const globalRoom = globals[currentGlobalId];
+        const userIndex = globalRoom.findIndex(
+          (user) => user.socketId === socketId
+        );
+
+        if (userIndex > -1) {
+          globalRoom.splice(userIndex, 1); // Remove user from room
+          globalNamespace
+            .to(currentGlobalId)
+            .emit("userCount", globalRoom.length);
+
+          // If user was the last in the global room, delete the room
+          if (globalRoom.length === 0) {
+            delete globals[currentGlobalId];
+          }
+        }
+
+        // Optionally, clear the globalId from the user document if they disconnect
+        if (user.globalId === socketId) {
+          user.globalId = null;
+          await user.save();
+        }
+      });
+    } catch (error) {
+      console.error("Error during socket connection:", error.message);
+      socket.emit("error", { message: "Connection error." });
+      socket.disconnect();
+    }
+  });
 
   return io;
 };
