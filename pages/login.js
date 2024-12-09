@@ -62,7 +62,7 @@ const Login = () => {
             width: "100%",
           }}
         >
-          <Button variant="contained" sx={styles.button}>
+          <Button variant="contained" sx={styles.button} onClick={handleLogin}>
             Login
           </Button>
 
