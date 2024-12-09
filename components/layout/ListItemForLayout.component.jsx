@@ -9,24 +9,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { MdExpandLess, MdExpandMore } from "react-icons/md";
-
-const colors = {
-  colorActive: "#ffffff",
-  // colorInActive: "#002A56",
-  // bgColorActive: "#002A56",
-  colorInActive: "#ffa31a",
-  bgColorActive: "#ffa31a",
-  bgColorInActive: "#f8f9fd",
-  buttonColorInactive: "#002A5685",
-  // backColor: "#dae8ff",
-  backColor: "#F3F3F3",
-  lightBgColor: "#f8f9fd",
-  checkBox: "#0053B3",
-  iconInActive: "#000000",
-  linkInActive: "#0053B3",
-  primaryLight: "#ffa31a",
-  titleColor: "#0053B3",
-};
+import colors from "../../Themes/basic";
 
 export const ListItemForLayout = ({
   tabName,

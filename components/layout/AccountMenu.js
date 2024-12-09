@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import { useContext, useState } from "react";
 import {
   Avatar,
   Box,
@@ -8,10 +8,8 @@ import {
   ListItemIcon,
   ListItemText,
   Menu,
-  Stack,
 } from "@mui/material";
 
-import { useEffect } from "react";
 import { useRouter } from "next/router";
 
 import {
@@ -23,30 +21,13 @@ import {
   MdNotificationsNone,
 } from "react-icons/md";
 
-import { PiUserSwitch } from "react-icons/pi";
 import MenuItemAcc from "./MenuItemAcc";
 import ProfileForItem from "./ProfileForItem";
 import { UserContext } from "../../services/userContext";
-
-const colors = {
-  colorActive: "#ffffff",
-  // colorInActive: "#002A56",
-  // bgColorActive: "#002A56",
-  colorInActive: "#ffa31a",
-  bgColorActive: "#ffa31a",
-  bgColorInActive: "#f8f9fd",
-  buttonColorInactive: "#002A5685",
-  // backColor: "#dae8ff",
-  backColor: "#F3F3F3",
-  lightBgColor: "#f8f9fd",
-  checkBox: "#0053B3",
-  iconInActive: "#000000",
-  linkInActive: "#0053B3",
-  primaryLight: "#ffa31a",
-  titleColor: "#0053B3",
-};
+import colors from "../../Themes/basic";
 
 const AccountMenu = () => {
+  console.log(colors);
   const [anchorEl, setAnchorEl] = useState(null);
   const { user, logout } = useContext(UserContext);
 

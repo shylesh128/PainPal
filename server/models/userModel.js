@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  isOAuth: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const User = mongoose.model("User", userSchema);

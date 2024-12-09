@@ -5,48 +5,39 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { Layout } from "../components/layout/Layout.component";
 import { UserProvider } from "../services/userContext";
-
-// Define color variables
-const colors = {
-  background: "#1b1b1b",
-  text: "#ffffff",
-  primary: "#ffa31a",
-  secondary: "#292929",
-  buttonBackground: "#808080",
-  buttonText: "#ffffff",
-};
+import { newColors } from "../Themes/newColors";
 
 // Create the theme using the colors object
 const theme = createTheme({
   palette: {
     background: {
-      default: colors.background,
-      paper: colors.secondary,
+      default: newColors.background,
+      paper: newColors.secondary,
     },
     text: {
-      primary: colors.text,
+      primary: newColors.text,
     },
     primary: {
-      main: colors.primary,
+      main: newColors.primary,
     },
     secondary: {
-      main: colors.secondary,
+      main: newColors.secondary,
     },
     action: {
-      active: colors.buttonBackground,
+      active: newColors.buttonBackground,
     },
   },
   typography: {
-    fontFamily: "Hilti, Roboto, sans-serif",
+    fontFamily: "Roboto, sans-serif",
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          backgroundColor: colors.buttonBackground,
-          color: colors.buttonText,
+          backgroundColor: newColors.buttonBackground,
+          color: newColors.buttonText,
           "&:hover": {
-            backgroundColor: colors.primary,
+            backgroundColor: newColors.primary,
           },
         },
       },
@@ -55,15 +46,15 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           "& .MuiOutlinedInput-root": {
-            color: colors.text,
+            color: newColors.text,
             "& fieldset": {
-              borderColor: colors.secondary,
+              borderColor: newColors.secondary,
             },
             "&:hover fieldset": {
-              borderColor: colors.primary,
+              borderColor: newColors.primary,
             },
             "&.Mui-focused fieldset": {
-              borderColor: colors.primary,
+              borderColor: newColors.primary,
             },
           },
         },
@@ -72,9 +63,9 @@ const theme = createTheme({
     MuiCheckbox: {
       styleOverrides: {
         root: {
-          color: colors.text,
+          color: newColors.text,
           "&.Mui-checked": {
-            color: colors.primary,
+            color: newColors.primary,
           },
         },
       },

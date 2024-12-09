@@ -3,6 +3,7 @@ import { Paper, Typography, Box } from "@mui/material";
 
 import FilePreview from "./Tweet/FilePreview";
 import { letterToColorMap } from "../utils/alphaToColors";
+import { newColors } from "../Themes/newColors";
 
 // Utility functions
 const formatTimestamp = (timestamp) => {
@@ -36,7 +37,7 @@ const PostHeader = ({ username, formattedTime }) => (
       @{username}
     </Typography>
     <Box sx={{ flexGrow: 1 }} />
-    <Typography variant="caption" sx={{ color: "#ffa31a" }}>
+    <Typography variant="caption" sx={{ color: newColors.primary }}>
       {formattedTime}
     </Typography>
   </Box>

@@ -6,8 +6,7 @@ const Message = require("./models/messageModel");
 const connectionModel = require("./models/connectionModel");
 const authenticateSocket = require("./middlewares/authenticateSocket");
 const ChatMessage = require("./models/ChatMessage");
-const secretKey =
-  "746d3de964867c223d8a97948f22987e66566d7b73e65f0b23221ac8174b986e";
+const secretKey = process.env.SECRET_KEY;
 
 module.exports = (httpServer) => {
   const io = socketIo(httpServer);

@@ -1,38 +1,12 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { useRouter } from "next/router";
 
 import TopAppBar from "./TopAppBar";
-import {
-  MdDashboard,
-  MdDoneAll,
-  MdDoubleArrow,
-  MdOutlineAnalytics,
-  MdOutlineSupportAgent,
-} from "react-icons/md";
 import MuiDrawer from "@mui/material/Drawer";
 import { styled } from "@mui/material/styles";
-import { List } from "@mui/material";
-import { ListItemForLayout } from "./ListItemForLayout.component";
 
 import { UserContext } from "../../services/userContext";
-
-const colors = {
-  colorActive: "#ffffff",
-  // colorInActive: "#002A56",
-  // bgColorActive: "#002A56",
-  colorInActive: "#ffa31a",
-  bgColorActive: "#ffa31a",
-  bgColorInActive: "#f8f9fd",
-  buttonColorInactive: "#002A5685",
-  // backColor: "#dae8ff",
-  backColor: "#F3F3F3",
-  lightBgColor: "#f8f9fd",
-  checkBox: "#0053B3",
-  iconInActive: "#000000",
-  linkInActive: "#0053B3",
-  primaryLight: "#ffa31a",
-  titleColor: "#0053B3",
-};
+import colors from "../../Themes/basic";
 
 export const Layout = ({ children }) => {
   const { user, loading } = useContext(UserContext);

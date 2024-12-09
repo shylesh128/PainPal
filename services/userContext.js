@@ -15,6 +15,7 @@ export const UserProvider = ({ children }) => {
   const version = "v1";
 
   const isLoggedIn = async () => {
+    console.log("TOKEN", token);
     try {
       const response = await axios.post(
         `/api/${version}/auth/isLoggedIn`,
@@ -103,6 +104,18 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    // try {
+    //   const response = await axios.get("/api/v1/auth/google");
+    //   console.log(response.data);
+    // } catch (error) {
+    //   // Handle error
+    //   console.error("An error occurred", error);
+    // }
+
+    router.push("/api/v1/auth/google");
+  };
+
   const contextValue = {
     user,
     login,
@@ -111,6 +124,7 @@ export const UserProvider = ({ children }) => {
     fetchUsers,
     fetchTweets,
     addPost,
+    handleGoogleLogin,
   };
 
   return (

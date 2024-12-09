@@ -8,25 +8,8 @@ import {
 } from "@mui/x-data-grid";
 import React from "react";
 import { MdArrowDropDown, MdArrowDropUp, MdTune } from "react-icons/md";
+import colors from "../Themes/basic";
 const spaceBetween = 2;
-
-const colors = {
-  colorActive: "#ffffff",
-  colorInActive: "#ffa31a",
-  bgColorActive: "#ffa31a",
-  bgColorInActive: "#f8f9fd",
-  buttonColorInactive: "#002A5685",
-  backColor: "#1b1b1b",
-  lightBgColor: "#f8f9fd",
-  checkBox: "#00A2EA",
-  primaryLight: "#395283",
-};
-
-// #ffa31a
-// #808080
-// #292929
-// #1b1b1b
-// #ffffff
 
 const DataGridStyle = (props) => {
   const [pageSize, setPageSize] = React.useState(props.pagesize);

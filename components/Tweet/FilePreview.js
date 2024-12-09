@@ -1,15 +1,7 @@
 import React, { useState, useRef } from "react";
 import Slider from "react-slick";
 import { Box } from "@mui/material";
-
-const colors = {
-  background: "#1b1b1b",
-  text: "#ffffff",
-  primary: "#ffa31a",
-  secondary: "#292929",
-  buttonBackground: "#808080",
-  buttonText: "#ffffff",
-};
+import { newColors } from "../../Themes/newColors";
 
 const FilePreview = ({ files }) => {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -32,10 +24,11 @@ const FilePreview = ({ files }) => {
           width: i === activeIndex ? "10px" : "10px",
           height: i === activeIndex ? "10px" : "10px",
           borderRadius: "50%",
-          backgroundColor: colors.primary,
           transition: "background-color 0.3s ease",
           cursor: "pointer",
           opacity: i === activeIndex ? 1 : 0.5,
+          backgroundColor:
+            i === activeIndex ? newColors.primary : newColors.text,
         }}
         onClick={() => sliderRef.current.slickGoTo(i)}
       />
@@ -66,8 +59,7 @@ const FilePreview = ({ files }) => {
     <Box
       sx={{
         mt: 1,
-        backgroundColor: colors.background,
-        color: colors.text,
+        color: newColors.text,
         borderRadius: "8px",
         padding: "10px",
       }}

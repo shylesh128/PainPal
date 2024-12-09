@@ -3,8 +3,9 @@ const jwt = require("jsonwebtoken");
 const cookie = require("cookie");
 const User = require("../models/userModel");
 
-const secretKey =
-  "746d3de964867c223d8a97948f22987e66566d7b73e65f0b23221ac8174b986e"; // Replace with your actual secret key
+const secretKey = process.env.SECRET_KEY;
+
+// Replace with your actual secret key
 
 const authenticateSocket = async (socket, next) => {
   try {

@@ -1,3 +1,21 @@
+/* Root theme variables */
+:root {
+  --background-color: #2a2a2a;
+  --foreground-color: #2a2a2a;
+  --text-color: #f1f1f1;
+  --primary-color: #7d6c91;
+  --secondary-color: #4b4b4b;
+  --button-color: #575757;
+  --button-text-color: #ffffff;
+  --sender-bubble-color: #6a5c8d;
+  --receiver-bubble-color: #4a4a4a;
+  --scrollbar-thumb-hover: #616161;
+  --timestamp-color: #b0b0b0;
+  --username-color: #b8a8c3;
+  --loader-border-color: #d0d0d0;
+}
+
+/* Global styles */
 * {
   box-sizing: border-box;
   padding: 0;
@@ -11,55 +29,42 @@ body {
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: #1d1d1d;
+  font-family: "Arial", sans-serif;
+  color: var(--text-color);
+  background-color: var(--foreground-color);
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 input {
-  color: #fff !important;
+  color: var(--text-color) !important;
 }
 
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #ffa31a;
+  background-color: var(--primary-color);
   border-radius: 4px;
   cursor: pointer;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #ffffff;
+  background-color: var(--scrollbar-thumb-hover);
 }
 
+/* Color scheme for dark mode */
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
   }
 }
 
-/* styles/globals.css */
-:root {
-  --background-color: #1b1b1b;
-  --text-color: #ffffff;
-  --primary-color: #ffa31a;
-  --secondary-color: #292929;
-  --button-color: #808080;
-  --button-text-color: #ffffff;
-}
-
-body {
-  font-family: "Arial", sans-serif;
-  line-height: 1.6;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: var(--background-color);
-  color: var(--text-color);
-}
-
+/* App components */
 #app-bar {
   background-color: var(--background-color);
   text-align: center;
@@ -120,6 +125,7 @@ body {
   margin-right: 8px;
   opacity: 0;
   transition: opacity 0.3s ease-in-out;
+  color: var(--username-color);
 }
 
 #messages li:hover .username {
@@ -127,8 +133,8 @@ body {
 }
 
 .timeStamp {
-  font-size: 0.5rem;
-  color: #808080;
+  font-size: 0.7rem;
+  color: var(--timestamp-color);
   margin-left: 1rem;
 }
 
@@ -173,59 +179,41 @@ button {
 }
 
 .message-bubble {
-  color: #333;
   padding: 10px 15px;
   border-radius: 20px;
   max-width: 100%;
   margin-bottom: 10px;
   display: inline-block;
   clear: both;
-  overflow: hidden; /* Added overflow */
-  word-wrap: break-word; /* Added word-wrap */
+  overflow: hidden;
+  word-wrap: break-word;
 }
 
 .sender-bubble {
-  background-color: #dcffb4;
+  background-color: var(--sender-bubble-color);
   float: right;
   border-top-right-radius: 5px;
 }
 
 .receiver-bubble {
-  background-color: #fff;
+  background-color: var(--receiver-bubble-color);
   float: left;
   border-top-left-radius: 5px;
 }
 
 .sender-anchor {
   font-size: 0.8em;
-  color: #666;
+  color: var(--username-color);
   margin-bottom: 5px;
 }
 
 .receiver-anchor {
-  display: none; /* Hide receiver anchor */
-}
-
-.username {
-  font-weight: 300;
-  font-size: 0.7rem;
-  opacity: 2;
-}
-
-.timeStamp {
-  font-size: 0.7rem;
-  color: #808080;
-}
-
-.message-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  display: none;
 }
 
 .currentUserMessage {
   background-color: transparent;
-  color: #292929;
+  color: var(--secondary-color);
   text-align: right;
   display: flex;
   justify-content: flex-end;
@@ -233,28 +221,27 @@ button {
 
 .otherUserMessage {
   background-color: transparent;
-  color: #ffffff;
+  color: var(--text-color);
   display: flex;
   justify-content: flex-start;
   align-items: baseline;
 }
 
-/* App.css */
 .loadingScreen {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #1d1d1d; /* Same as body background color */
+  background-color: var(--foreground-color);
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .loader {
-  border: 8px solid #f3f3f3; /* Lighter color for loader border */
-  border-top: 8px solid #ffa31a; /* Primary color for loader */
+  border: 8px solid var(--loader-border-color);
+  border-top: 8px solid var(--primary-color);
   border-radius: 50%;
   width: 50px;
   height: 50px;
@@ -270,6 +257,7 @@ button {
   }
 }
 
+/* Responsive adjustments */
 @media (max-width: 768px) {
   #side-app {
     display: none;

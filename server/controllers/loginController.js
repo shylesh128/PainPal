@@ -4,24 +4,17 @@ const appError = require("../utils/appError");
 const useragent = require("useragent");
 
 const jwt = require("jsonwebtoken");
+const DeviceLog = require("../models/deviceModel");
+const { getClientIp } = require("../utils/clientIp");
 
-const secretKey =
-  "746d3de964867c223d8a97948f22987e66566d7b73e65f0b23221ac8174b986e";
-
-const getClientIp = (req) => {
-  return req.headers["x-forwarded-for"]
-    ? req.headers["x-forwarded-for"].split(",")[0]
-    : req.ip;
-};
+const secretKey = process.env.SECRET_KEY;
 
 const login = catchAsync(async (req, res, next) => {
   const email = req.body.email;
   const agent = useragent.parse(req.headers["user-agent"]);
-  console.log(agent);
-
   const ip = getClientIp(req);
-  console.log(ip);
 
+  // Fetch user by email
   const user = await User.findOne({ email });
 
   if (!user) {
@@ -31,13 +24,28 @@ const login = catchAsync(async (req, res, next) => {
     });
   }
 
+  // Generate JWT token
   const token = jwt.sign({ userId: user._id }, secretKey, {
     expiresIn: "9999999d",
   });
 
+  // Log the login attempt and device details
+  const deviceLog = new DeviceLog({
+    user: user._id,
+    device: {
+      device: agent.device || "unknown",
+      os: agent.os || "unknown",
+      browser: agent.toAgent() || "unknown",
+    },
+    ip: ip || "unknown",
+  });
+
+  await deviceLog.save(); // Save the device log to the database
+
+  // Send the response with the token
   res.status(200).json({
     status: "success",
-    message: "User login successfully.",
+    message: "User logged in successfully.",
     token: token,
     user: user,
   });

@@ -1,33 +1,20 @@
-import { Box, Button, Typography, TextField } from "@mui/material";
-import axios from "axios";
-import { useRouter } from "next/router";
-import { useEffect, useState, useContext } from "react";
+import { Box, Button, Typography, TextField, Divider } from "@mui/material";
+import { useState, useContext } from "react";
 import { TypeAnimation } from "react-type-animation";
 import { UserContext } from "../services/userContext";
+import { useRouter } from "next/router"; // Import useRouter for routing
+import { FcGoogle } from "react-icons/fc"; // Import Google icon from react-icons
+import { styles } from "../styles/login-style";
+
 const Login = () => {
-  const router = useRouter();
-  const { login } = useContext(UserContext);
+  const { login, handleGoogleLogin } = useContext(UserContext);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
-  const containerStyle = {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    height: "100vh",
-    backgroundColor: "#1b1b1b",
-  };
-
-  const errorStyle = {
-    color: "#ffa31a",
-    margin: "10px 0",
-  };
+  const router = useRouter(); // Initialize the router
 
   const handleLogin = async () => {
     if (email) {
       setError("");
-
       const res = await login(email);
     } else {
       setError("Please provide valid email");
@@ -35,36 +22,17 @@ const Login = () => {
   };
 
   return (
-    <div style={containerStyle}>
-      <Box
-        sx={{
-          backgroundColor: "#292929",
-          padding: "20px",
-          borderRadius: "8px",
-          boxShadow: "0 0 10px rgba(0, 0, 0, 0.3)",
-          textAlign: "center",
-          width: {
-            xs: "350px",
-            sm: "500px",
-          },
-        }}
-      >
-        <Box
-          sx={{
-            backgroundImage: `url("/images/main.jpg")`,
-            backgroundSize: "50%",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
-            width: "100%",
-            height: "100px",
-            mixBlendMode: "lighten",
-          }}
-        ></Box>
+    <div style={styles.container}>
+      <Box sx={styles.box}>
+        <Typography variant="h2" component="div" sx={styles.title}>
+          Pain
+          <span style={styles.highlightedSpan}>Pal</span>
+        </Typography>
 
         <TypeAnimation
           sequence={["Welcome", 1500, "Write your pain", 1500]}
           speed={40}
-          style={{ fontSize: "2em" }}
+          style={styles.typeAnimation}
         />
 
         <TextField
@@ -74,42 +42,45 @@ const Login = () => {
           value={email}
           fullWidth
           onChange={(e) => setEmail(e.target.value)}
-          sx={{
-            marginTop: "2rem",
-            marginBottom: "2rem",
-            color: "white",
-            background: "#333",
-            "& .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#555",
-            },
-            "&:hover .MuiOutlinedInput-notchedOutline": {
-              borderColor: "#555",
-            },
-          }}
-          InputProps={{
-            style: {
-              color: "white",
-              placeholder: "white",
+          sx={styles.textField}
+          slotProps={{
+            input: {
+              style: styles.inputProps,
             },
           }}
         />
 
-        {error && <p style={errorStyle}>{error}</p>}
-        <Button
-          variant="contained"
-          onClick={handleLogin}
+        {error && <p style={styles.error}>{error}</p>}
+
+        <Box
           sx={{
-            backgroundColor: "#ffa31a",
-            color: "#1b1b1b",
-            cursor: "pointer",
-            ":hover": {
-              backgroundColor: "#ffcc99",
-              color: "#1b1b1b",
-            },
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "20px",
+            justifyContent: "center",
+            width: "100%",
           }}
         >
-          Login
-        </Button>
+          <Button variant="contained" sx={styles.button}>
+            Login
+          </Button>
+
+          <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+            <Divider sx={{ flexGrow: 1 }} />
+            <Typography sx={{ mx: 2, fontWeight: "bold" }}>OR</Typography>
+            <Divider sx={{ flexGrow: 1 }} />
+          </Box>
+
+          <Button
+            variant="outlined"
+            onClick={handleGoogleLogin}
+            sx={styles.googleButton}
+            startIcon={<FcGoogle />}
+          >
+            Sign in with Google
+          </Button>
+        </Box>
       </Box>
     </div>
   );

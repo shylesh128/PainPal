@@ -3,24 +3,7 @@ import { Avatar, Box, Button, Grid, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import React, { useContext } from "react";
 import { UserContext } from "../../services/userContext";
-
-const colors = {
-  colorActive: "#ffffff",
-  // colorInActive: "#002A56",
-  // bgColorActive: "#002A56",
-  colorInActive: "#ffa31a",
-  bgColorActive: "#ffa31a",
-  bgColorInActive: "#f8f9fd",
-  buttonColorInactive: "#002A5685",
-  // backColor: "#dae8ff",
-  backColor: "#F3F3F3",
-  lightBgColor: "#f8f9fd",
-  checkBox: "#0053B3",
-  iconInActive: "#000000",
-  linkInActive: "#0053B3",
-  primaryLight: "#ffa31a",
-  titleColor: "#0053B3",
-};
+import colors from "../../Themes/basic";
 
 const ProfileForItem = () => {
   const { user } = useContext(UserContext);
