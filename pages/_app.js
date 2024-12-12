@@ -6,6 +6,8 @@ import "slick-carousel/slick/slick-theme.css";
 import { Layout } from "../components/layout/Layout.component";
 import { UserProvider } from "../services/userContext";
 import { newColors } from "../Themes/newColors";
+import { Provider } from "react-redux";
+import store from "../store/store";
 
 // Create the theme using the colors object
 const theme = createTheme({
@@ -75,12 +77,14 @@ const theme = createTheme({
 
 export default function App({ Component, pageProps }) {
   return (
-    <UserProvider>
-      <ThemeProvider theme={theme}>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
-      </ThemeProvider>
-    </UserProvider>
+    <Provider store={store}>
+      <UserProvider>
+        <ThemeProvider theme={theme}>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </ThemeProvider>
+      </UserProvider>
+    </Provider>
   );
 }

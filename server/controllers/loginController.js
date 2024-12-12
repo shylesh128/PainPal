@@ -43,6 +43,8 @@ const login = catchAsync(async (req, res, next) => {
   await deviceLog.save(); // Save the device log to the database
 
   // Send the response with the token
+
+  res.cookie("pain", token);
   res.status(200).json({
     status: "success",
     message: "User logged in successfully.",

@@ -1,21 +1,21 @@
+import { useState } from "react";
+import { useRouter } from "next/router";
+import { useDispatch } from "react-redux";
 import { Box, Button, Typography, TextField, Divider } from "@mui/material";
-import { useState, useContext } from "react";
-import { TypeAnimation } from "react-type-animation";
-import { UserContext } from "../services/userContext";
-import { useRouter } from "next/router"; // Import useRouter for routing
-import { FcGoogle } from "react-icons/fc"; // Import Google icon from react-icons
+import { FcGoogle } from "react-icons/fc";
 import { styles } from "../styles/login-style";
+import { loginUser } from "../store/userSlice";
 
 const Login = () => {
-  const { login, handleGoogleLogin } = useContext(UserContext);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
-  const router = useRouter(); // Initialize the router
+  const router = useRouter();
+  const dispatch = useDispatch();
 
   const handleLogin = async () => {
     if (email) {
       setError("");
-      const res = await login(email);
+      dispatch(loginUser({ email }));
     } else {
       setError("Please provide valid email");
     }
@@ -28,12 +28,6 @@ const Login = () => {
           Pain
           <span style={styles.highlightedSpan}>Pal</span>
         </Typography>
-
-        <TypeAnimation
-          sequence={["Welcome", 1500, "Write your pain", 1500]}
-          speed={40}
-          style={styles.typeAnimation}
-        />
 
         <TextField
           type="email"
@@ -74,9 +68,11 @@ const Login = () => {
 
           <Button
             variant="outlined"
-            onClick={handleGoogleLogin}
             sx={styles.googleButton}
             startIcon={<FcGoogle />}
+            onClick={() => {
+              router.push("/api/v1/auth/google");
+            }}
           >
             Sign in with Google
           </Button>

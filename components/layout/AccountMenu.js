@@ -23,13 +23,17 @@ import {
 
 import MenuItemAcc from "./MenuItemAcc";
 import ProfileForItem from "./ProfileForItem";
-import { UserContext } from "../../services/userContext";
 import colors from "../../Themes/basic";
+import { useSelector } from "react-redux";
+import { logout } from "../../store/userSlice";
+import { useDispatch } from "react-redux";
 
 const AccountMenu = () => {
   console.log(colors);
   const [anchorEl, setAnchorEl] = useState(null);
-  const { user, logout } = useContext(UserContext);
+  const dispatch = useDispatch();
+
+  const { user } = useSelector((state) => state.user);
 
   const open = Boolean(anchorEl);
   const router = useRouter();
@@ -45,7 +49,7 @@ const AccountMenu = () => {
   const handleLogoutWithMenuClose = () => {
     handleMenuClose();
 
-    logout();
+    dispatch(logout());
   };
 
   return (
@@ -124,7 +128,7 @@ const AccountMenu = () => {
                 primary={
                   user?.firstName
                     ? `${user?.firstName} ${user.lastName}`
-                    : user.name
+                    : user?.name
                 }
                 sx={{
                   color: "white",

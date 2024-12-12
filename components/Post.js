@@ -1,27 +1,17 @@
-import React from "react";
-import { Paper, Typography, Box } from "@mui/material";
+import React, { useState } from "react";
+import { Paper, Typography, Box, IconButton, Button } from "@mui/material";
 
 import FilePreview from "./Tweet/FilePreview";
 import { letterToColorMap } from "../utils/alphaToColors";
 import { newColors } from "../Themes/newColors";
-
-// Utility functions
-const formatTimestamp = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+import { localizeTime } from "../utils/localize";
+import { IoMdHeart } from "react-icons/io";
 
 const getColorForUsername = (username) => {
   const firstLetter = username.charAt(0).toUpperCase();
-
   return letterToColorMap[firstLetter] || "#000000";
 };
 
-// File Component
-
-// Post Component
 const PostHeader = ({ username, formattedTime }) => (
   <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
     <Typography
@@ -51,7 +41,17 @@ const PostContent = ({ text }) => (
 
 // Main Post Component
 const Post = ({ text, username, timestamp, files }) => {
-  const formattedTime = formatTimestamp(timestamp);
+  const formattedTime = localizeTime(timestamp);
+
+  // State for like count and liked status
+  const [likeCount, setLikeCount] = useState(0);
+  const [liked, setLiked] = useState(false);
+
+  // Toggle like status and update like count
+  const toggleLike = () => {
+    setLiked(!liked);
+    setLikeCount((prevCount) => (liked ? prevCount - 1 : prevCount + 1));
+  };
 
   return (
     <Paper
@@ -69,6 +69,24 @@ const Post = ({ text, username, timestamp, files }) => {
       <PostHeader username={username} formattedTime={formattedTime} />
       <PostContent text={text} />
       {files && files.length > 0 && <FilePreview files={files} />}
+
+      <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+        <Button
+          onClick={toggleLike}
+          sx={{
+            color: liked ? newColors.primary : newColors.secondary,
+            backgroundColor: "transparent",
+            "&:hover": {
+              backgroundColor: "transparent",
+            },
+          }}
+        >
+          <IoMdHeart />
+        </Button>
+        <Typography variant="body2" sx={{ color: newColors.primary }}>
+          {likeCount} {likeCount === 1 ? "Like" : "Likes"}
+        </Typography>
+      </Box>
     </Paper>
   );
 };

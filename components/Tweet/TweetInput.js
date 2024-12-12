@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { MdCamera } from "react-icons/md";
+import { newColors } from "../../Themes/newColors";
 
 export const TweetInput = ({ addNewTweet }) => {
   const [newPost, setNewPost] = useState("");
@@ -57,7 +58,7 @@ export const TweetInput = ({ addNewTweet }) => {
       >
         <Box
           sx={{
-            bgcolor: "background.paper",
+            bgcolor: newColors.background,
             p: 3,
             borderRadius: 2,
             width: "90%",

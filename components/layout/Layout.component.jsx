@@ -7,9 +7,12 @@ import { styled } from "@mui/material/styles";
 
 import { UserContext } from "../../services/userContext";
 import colors from "../../Themes/basic";
+import { useSelector } from "react-redux";
 
 export const Layout = ({ children }) => {
-  const { user, loading } = useContext(UserContext);
+  // const { user, loading } = useContext(UserContext);
+
+  const { loading, error, user } = useSelector((state) => state.user);
   const router = useRouter();
   const [drawerWidth, setDrawerWidth] = useState("20%");
   const [open, setOpen] = useState(false);

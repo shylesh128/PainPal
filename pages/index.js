@@ -1,29 +1,25 @@
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
-import { TweetService } from "../services/TweetService";
-import { SnackbarNotification } from "../components/Notification/SnackbarNotification";
 import { TweetList } from "../components/Tweet/TweetList";
 import { TweetInput } from "../components/Tweet/TweetInput";
-import { UserContext } from "../services/userContext";
+import { SnackbarNotification } from "../components/Notification/SnackbarNotification";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchTweets, addPost } from "../store/tweetsSlice";
 
 const Tweet = () => {
-  const { user, fetchTweets, addPost } = useContext(UserContext);
-
-  const [page, setPage] = useState(1);
-  const [tweets, setTweets] = useState([]);
-  const [newPost, setNewPost] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
   const chatContainerRef = useRef(null);
+  const { tweets, loading } = useSelector((state) => state.tweets);
+  const { user } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
+  const [newPost, setNewPost] = useState("");
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const tweetService = new TweetService(fetchTweets, addPost);
+  console.log(tweets);
 
-  const fetchNewTweets = async () => {
-    setLoading(true);
-    const res = await tweetService.fetchTweets(page);
-    setTweets([...tweets, ...res]);
-    setLoading(false);
-  };
+  useEffect(() => {
+    dispatch(fetchTweets(page)); // Dispatch fetchTweets when page changes
+  }, [page, dispatch]);
 
   const addNewTweet = async (newPost, selectedImages) => {
     if (newPost.trim() !== "") {
@@ -43,15 +39,12 @@ const Tweet = () => {
         formData.append("files", file);
       });
 
-      try {
-        const response = await tweetService.addPost(formData);
-        setTweets([response, ...tweets]);
-        setNewPost("");
-      } catch (error) {
-        console.error("Error creating tweet:", error);
-      }
+      // Dispatch addPost action
+      dispatch(addPost(formData));
+      setNewPost(""); // Clear new post input
     }
   };
+
   const handleCloseSnackbar = (event, reason) => {
     if (reason === "clickaway") {
       return;
@@ -70,19 +63,16 @@ const Tweet = () => {
     }
   };
 
-  useEffect(() => {
-    fetchNewTweets();
-  }, [page]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [tweets]);
-
   return (
     <>
       <SnackbarNotification
         open={openSnackbar}
         handleClose={handleCloseSnackbar}
+      />
+      <TweetInput
+        newPost={newPost}
+        setNewPost={setNewPost}
+        addNewTweet={addNewTweet}
       />
       <Box
         sx={{
@@ -96,11 +86,6 @@ const Tweet = () => {
         ref={chatContainerRef}
       >
         <TweetList loading={loading} tweets={tweets} loadMore={loadMore} />
-        <TweetInput
-          newPost={newPost}
-          setNewPost={setNewPost}
-          addNewTweet={addNewTweet}
-        />
       </Box>
     </>
   );

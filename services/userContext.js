@@ -1,57 +1,34 @@
 import axios from "axios";
 import { createContext, useEffect, useState } from "react";
-import { useCookies } from "react-cookie";
 import { useRouter } from "next/router";
+import { useDispatch } from "react-redux";
+import Cookies from "js-cookie";
+import { useSelector } from "react-redux";
+import { checkIsLoggedIn, logout } from "../store/userSlice";
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-  const [user, setUser] = useState(undefined);
-  const [loading, setLoading] = useState(false);
-  const [cookies, setCookie, removeCookie] = useCookies(["user"]);
-  const [token, setToken] = useState(cookies.pain);
   const router = useRouter();
+  const { user, loading, error } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
 
   const version = "v1";
 
-  const isLoggedIn = async () => {
-    console.log("TOKEN", token);
-    try {
-      const response = await axios.post(
-        `/api/${version}/auth/isLoggedIn`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.status === 200) {
-        setUser(response.data.user);
-      }
-    } catch (error) {
-      router.push("/login");
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const token = Cookies.get("pain");
 
-  const login = async (email) => {
-    if (email) {
-      try {
-        const response = await axios.post(`/api/${version}/auth/login`, {
-          email: email,
+    if (token && !user) {
+      dispatch(checkIsLoggedIn(token))
+        .unwrap()
+        .catch(() => {
+          dispatch(logout());
+          router.replace("/login");
         });
-        if (response.status === 200) {
-          setUser(response.data.user);
-          setCookie("pain", response.data.token);
-          setToken(response.data.token);
-          router.push("/");
-        }
-      } catch (error) {
-        console.error("Login failed:", error);
-      }
+    } else if (!token) {
+      router.replace("/login");
     }
-  };
+  }, [dispatch, user]);
 
   const fetchUsers = async () => {
     try {
@@ -62,18 +39,8 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  useEffect(() => {
-    isLoggedIn();
-  }, []);
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    removeCookie("pain");
-    router.push("/login");
-  };
-
   const fetchTweets = async (page) => {
+    const token = Cookies.get("pain");
     try {
       const response = await axios.get(`/api/${version}/tweets?page=${page}`, {
         headers: {
@@ -89,6 +56,7 @@ export const UserProvider = ({ children }) => {
   };
 
   const addPost = async (formData) => {
+    const token = Cookies.get("pain");
     try {
       const response = await axios.post(`/api/v2/tweets`, formData, {
         headers: {
@@ -105,21 +73,11 @@ export const UserProvider = ({ children }) => {
   };
 
   const handleGoogleLogin = async () => {
-    // try {
-    //   const response = await axios.get("/api/v1/auth/google");
-    //   console.log(response.data);
-    // } catch (error) {
-    //   // Handle error
-    //   console.error("An error occurred", error);
-    // }
-
     router.push("/api/v1/auth/google");
   };
 
   const contextValue = {
     user,
-    login,
-    logout,
     loading,
     fetchUsers,
     fetchTweets,

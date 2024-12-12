@@ -1,4 +1,4 @@
-import { Typography, Container, Grid } from "@mui/material";
+import { Typography, Grid } from "@mui/material";
 import { useState, useEffect, useRef, useContext } from "react";
 import io from "socket.io-client";
 import { UserContext } from "../services/userContext";
@@ -171,7 +171,7 @@ export default function Chat() {
                     <MessageBubble
                       sender={message.userId === user.name}
                       message={message.msg}
-                      timestamp={formatTimestamp(message.timestamp)}
+                      timestamp={message.timestamp}
                     />
                   </div>
                 </li>

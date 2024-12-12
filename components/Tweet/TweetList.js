@@ -25,7 +25,11 @@ export const TweetList = ({ loading, tweets, loadMore }) => (
         Loading...
       </Typography>
     ) : (
-      <div>
+      <div
+        style={{
+          scrollBehavior: "smooth",
+        }}
+      >
         {tweets.map((tweet, index) => (
           <Post
             key={index}
