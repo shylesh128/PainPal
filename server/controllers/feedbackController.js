@@ -45,7 +45,7 @@ const getAllFeedback = catchAsync(async (req, res, next) => {
   const limit = req.query.limit || 10;
   const skip = (page - 1) * limit;
 
-  const feedback = await Feedback.find().skip(skip).limit(limit);
+  const feedback = await Feedback.find();
 
   res.status(200).json({
     status: "success",

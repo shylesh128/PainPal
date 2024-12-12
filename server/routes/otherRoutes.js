@@ -12,13 +12,13 @@ const {
   geminiAIChat,
 } = require("../controllers/GeminiController");
 
-router.get("/api/feedback", getAllFeedback);
-router.post("/api/feedback", createFeedback);
+router.get("/feedback", getAllFeedback);
+router.post("/feedback", createFeedback);
 
-router.post("/api/python", pythoncodeComplier);
-router.post("/api/c", cCodeCompiler);
+router.post("/python", pythoncodeComplier);
+router.post("/c", cCodeCompiler);
 
-router.post("/api/alttext/:apikey", generateAltText);
-router.post("/api/aichat/:apikey", geminiAIChat);
+router.post("/alttext/:apikey", generateAltText);
+router.post("/aichat/:apikey", geminiAIChat);
 
 module.exports = router;
