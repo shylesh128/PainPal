@@ -42,8 +42,6 @@ app
     server.use(`${version}/users`, require("./routes/userRoutes"));
     server.use(`${version}/other`, require("./routes/otherRoutes"));
 
-    server.use(`/api/v2/tweets`, require("./routes/testRoutes"));
-
     server.get("*", (req, res) => {
       return handle(req, res);
     });

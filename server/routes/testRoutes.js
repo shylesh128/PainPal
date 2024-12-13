@@ -6,7 +6,9 @@ const {
   fileMiddleware,
   imageResizeMiddleware,
 } = require("../middlewares/filemiddleware");
+const authMiddleware = require("../middlewares/authmiddleware");
 
+router.use(authMiddleware);
 router.get("/", getAllTweets);
 router.post("/", fileMiddleware, createTweet);
 

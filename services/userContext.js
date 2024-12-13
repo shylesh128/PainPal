@@ -15,7 +15,13 @@ export const UserProvider = ({ children }) => {
   const version = "v1";
 
   const isLoggedIn = async () => {
-    console.log("TOKEN", token);
+    console.log(token);
+
+    if (!token) {
+      console.log("Token not found", token);
+      router.push("/login");
+      return;
+    }
     try {
       const response = await axios.post(
         `/api/${version}/auth/isLoggedIn`,
@@ -64,7 +70,7 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     isLoggedIn();
-  }, []);
+  }, [token]);
 
   const logout = () => {
     setUser(null);
@@ -90,13 +96,31 @@ export const UserProvider = ({ children }) => {
 
   const addPost = async (formData) => {
     try {
-      const response = await axios.post(`/api/v2/tweets`, formData, {
+      const response = await axios.post(`/api/${version}/tweets`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`,
         },
       });
 
+      const data = response.data;
+      return data.data.tweet;
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+    }
+  };
+
+  const sendLike = async (tweetId) => {
+    try {
+      const response = await axios.post(
+        `/api/${version}/tweets/${tweetId}/like`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const data = response.data;
       return data.data.tweet;
     } catch (error) {
@@ -124,6 +148,7 @@ export const UserProvider = ({ children }) => {
     fetchUsers,
     fetchTweets,
     addPost,
+    sendLike,
     handleGoogleLogin,
   };
 

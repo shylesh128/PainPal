@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Button, Typography } from "@mui/material";
 import Post from "../Post";
+import { newColors } from "../../Themes/newColors";
 
 export const TweetList = ({ loading, tweets, loadMore }) => (
   <Box
@@ -27,19 +28,22 @@ export const TweetList = ({ loading, tweets, loadMore }) => (
     ) : (
       <div>
         {tweets.map((tweet, index) => (
-          <Post
-            key={index}
-            text={tweet.tweet}
-            username={tweet.name}
-            timestamp={tweet.timeStamp}
-            files={tweet.files}
-          />
+          <Post key={index} tweet={tweet} />
         ))}
       </div>
     )}
 
     <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
-      <Button onClick={loadMore} sx={{ width: "250px" }}>
+      <Button
+        onClick={loadMore}
+        sx={{
+          width: "250px",
+          backgroundColor: "transparent",
+          border: "2px solid ",
+          borderColor: newColors.primary,
+        }}
+        variant="outlined"
+      >
         Load More
       </Button>
     </Box>

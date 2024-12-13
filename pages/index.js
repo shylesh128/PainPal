@@ -95,12 +95,12 @@ const Tweet = () => {
         }}
         ref={chatContainerRef}
       >
-        <TweetList loading={loading} tweets={tweets} loadMore={loadMore} />
         <TweetInput
           newPost={newPost}
           setNewPost={setNewPost}
           addNewTweet={addNewTweet}
         />
+        <TweetList loading={loading} tweets={tweets} loadMore={loadMore} />
       </Box>
     </>
   );

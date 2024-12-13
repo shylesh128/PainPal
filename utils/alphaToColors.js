@@ -26,3 +26,9 @@ export const letterToColorMap = {
   Y: "#20b2aa", // pastel light sea green
   Z: "#db7093", // pastel pale violet red
 };
+
+export const getColorForUsername = (username) => {
+  const firstLetter = username?.charAt(0).toUpperCase();
+
+  return letterToColorMap[firstLetter] || "#000000";
+};

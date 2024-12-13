@@ -5,13 +5,14 @@ const { uploadToCloudinary } = require("../utils/imageService");
 const { unlinkFiles } = require("../middlewares/filemiddleware");
 
 const createTweet = catchAsync(async (req, res, next) => {
-  const { tweet, name, email } = req.body;
+  const { tweet } = req.body;
   const files = req.files;
+  const user = req.user;
 
-  if (!tweet || !name || !email) {
+  if (!tweet || !user) {
     return res.status(400).json({
       status: "fail",
-      message: "Tweet, name, and email are required fields.",
+      message: "Tweet and user are required fields.",
     });
   }
 
@@ -21,9 +22,8 @@ const createTweet = catchAsync(async (req, res, next) => {
   }
 
   const newTweet = await Tweet.create({
+    userId: user._id,
     tweet,
-    name,
-    email,
     files: imageUrls,
   });
 
@@ -48,7 +48,19 @@ const getAllTweets = catchAsync(async (req, res, next) => {
   const tweets = await Tweet.find()
     .sort({ timeStamp: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .populate({
+      path: "userId",
+      select: "name email profilePic",
+    })
+    .populate({
+      path: "likes",
+      select: "name profilePic",
+    })
+    .populate({
+      path: "comments.userId",
+      select: "name profilePic",
+    });
 
   const nextPage = totalTweets > skip + limit ? page + 1 : null;
 
@@ -65,4 +77,49 @@ const getAllTweets = catchAsync(async (req, res, next) => {
   });
 });
 
-module.exports = { createTweet, getAllTweets };
+const likeTweetController = catchAsync(async (req, res, next) => {
+  const tweetId = req.params.tweetId;
+  const user = req.user;
+
+  // Validate request
+  if (!tweetId || !user) {
+    return next(
+      new AppError("Invalid request. Tweet ID or user missing.", 400)
+    );
+  }
+
+  // Find the tweet and populate likes
+  const tweet = await Tweet.findById(tweetId).populate({
+    path: "likes",
+    select: "name profilePic",
+  });
+
+  if (!tweet) {
+    return next(new AppError("Tweet not found.", 404));
+  }
+
+  const userId = user._id.toString();
+
+  // Toggle like
+  const alreadyLiked = tweet.likes.some(
+    (like) => like._id.toString() === userId
+  );
+
+  if (alreadyLiked) {
+    tweet.likes = tweet.likes.filter((like) => like._id.toString() !== userId);
+  } else {
+    tweet.likes.push(userId);
+  }
+
+  await tweet.save();
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      tweet,
+      liked: !alreadyLiked, // Indicate the current state
+    },
+  });
+});
+
+module.exports = { createTweet, getAllTweets, likeTweetController };
