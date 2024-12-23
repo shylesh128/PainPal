@@ -51,15 +51,15 @@ const getAllTweets = catchAsync(async (req, res, next) => {
     .limit(limit)
     .populate({
       path: "userId",
-      select: "name email profilePic",
+      select: "name email photo",
     })
     .populate({
       path: "likes",
-      select: "name profilePic",
+      select: "name photo",
     })
     .populate({
       path: "comments.userId",
-      select: "name profilePic",
+      select: "name photo",
     });
 
   const nextPage = totalTweets > skip + limit ? page + 1 : null;
@@ -91,7 +91,7 @@ const likeTweetController = catchAsync(async (req, res, next) => {
   // Find the tweet and populate likes
   const tweet = await Tweet.findById(tweetId).populate({
     path: "likes",
-    select: "name profilePic",
+    select: "name photo",
   });
 
   if (!tweet) {

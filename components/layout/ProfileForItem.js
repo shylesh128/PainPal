@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import React, { useContext } from "react";
 import { UserContext } from "../../services/userContext";
 import colors from "../../Themes/basic";
+import { newColors } from "../../Themes/newColors";
 
 const ProfileForItem = () => {
   const { user } = useContext(UserContext);
@@ -52,7 +53,16 @@ const ProfileForItem = () => {
               ></Avatar>
             </Box>
           </Grid>
-          <Grid item xs={9}>
+          <Grid
+            item
+            xs={9}
+            sx={{
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              router.push("/profile");
+            }}
+          >
             <Box
               sx={{
                 display: "flex",
@@ -65,55 +75,18 @@ const ProfileForItem = () => {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="subtitle2">
-                  {user.firstName} {user.lastName}
-                </Typography>
+                <Typography variant="subtitle2">{user?.name}</Typography>
               </Box>
-
-              {/* <Button
-                sx={{
-                  bgcolor: colors.white,
-                  borderRadius: 15,
-                  borderWidth: "1px",
-                  borderColor: colors.primaryLight,
-                  borderStyle: "solid",
-                  padding: 0.5,
-                  color: colors.primaryLight,
-                  fontWeight: 500,
-                }}
-                onClick={() => {
-                  router.push("/profile");
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: "8px",
-                  }}
-                  variant="button"
-                >
-                  Edit Profile
-                </Typography>
-              </Button> */}
             </Box>
 
             <Typography
               sx={{
                 fontSize: "12px",
-                lineHeight: 1.5,
-                color: "white",
-              }}
-              variant="body1"
-            >
-              {user.role ? user.role : "Profession"}
-            </Typography>
-            <Typography
-              sx={{
-                fontSize: "12px",
-                color: colors.secondary,
+                color: newColors.primary,
                 lineHeight: 1.5,
               }}
             >
-              {user?.username}
+              {user?.email}
             </Typography>
           </Grid>
         </Grid>

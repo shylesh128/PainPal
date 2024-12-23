@@ -80,6 +80,7 @@ export const UserProvider = ({ children }) => {
   };
 
   const fetchTweets = async (page) => {
+    if (!token) return [];
     try {
       const response = await axios.get(`/api/${version}/tweets?page=${page}`, {
         headers: {
@@ -128,15 +129,44 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    // try {
-    //   const response = await axios.get("/api/v1/auth/google");
-    //   console.log(response.data);
-    // } catch (error) {
-    //   // Handle error
-    //   console.error("An error occurred", error);
-    // }
+  const fetchUserDetails = async () => {
+    try {
+      const response = await axios.get(`/api/${version}/users/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+    }
+  };
 
+  const updateProfilePic = async (image) => {
+    try {
+      const formData = new FormData();
+      Array.from(image).forEach((file) => {
+        formData.append("files", file);
+      });
+      const response = await axios.post(
+        `/api/${version}/users/me/photo`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setUser(response.data.data);
+
+      return response.data;
+    } catch (error) {
+      console.error("Error updating profile picture:", error);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
     router.push("/api/v1/auth/google");
   };
 
@@ -150,6 +180,8 @@ export const UserProvider = ({ children }) => {
     addPost,
     sendLike,
     handleGoogleLogin,
+    fetchUserDetails,
+    updateProfilePic,
   };
 
   return (

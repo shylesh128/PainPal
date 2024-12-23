@@ -1,6 +1,10 @@
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/userModel");
+const Tweet = require("../models/tweetModel");
+const DeviceLog = require("../models/deviceModel");
 const appError = require("../utils/appError");
+const { unlinkFiles } = require("../middlewares/filemiddleware");
+const { uploadToCloudinary } = require("../utils/imageService");
 
 const deleteUser = catchAsync(async (req, res, next) => {
   const userId = req.params.id;
@@ -154,6 +158,94 @@ const deleteAllUsers = catchAsync(async (req, res, next) => {
   });
 });
 
+const userDetails = catchAsync(async (req, res, next) => {
+  const user = req.user;
+
+  const userDetails = await User.findById(user._id);
+
+  const tweets = await Tweet.find({ userId: user._id })
+    .populate("likes", "username")
+    .populate("comments.userId", "username")
+    .sort("-timeStamp");
+
+  const likedTweets = await Tweet.find({ likes: user._id })
+    .populate("userId", "username")
+    .sort("-timeStamp");
+
+  const userComments = await Tweet.aggregate([
+    { $unwind: "$comments" },
+    { $match: { "comments.userId": user._id } },
+    {
+      $lookup: {
+        from: "users",
+        localField: "comments.userId",
+        foreignField: "_id",
+        as: "commentUser",
+      },
+    },
+    { $unwind: "$commentUser" },
+    {
+      $project: {
+        tweetId: "$_id",
+        tweet: "$tweet",
+        comment: "$comments.comment",
+        timeStamp: "$comments.timeStamp",
+        user: "$commentUser.username",
+      },
+    },
+  ]);
+
+  const loginActivity = await DeviceLog.find({ user: user._id })
+    .select("device ip loginAt")
+    .sort("-loginAt");
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      userDetails,
+      tweets,
+      likedTweets,
+      userComments,
+      loginActivity,
+    },
+  });
+});
+
+const updateProfilePicController = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const files = req.files;
+
+  if (!files || files.length === 0) {
+    return res.status(400).json({
+      status: "fail",
+      data: {},
+      message: "Profile picture is required.",
+    });
+  }
+
+  let updatedPhotoUrl;
+
+  const filesToSend = [files[0]];
+  updatedPhotoUrl = await uploadToCloudinary(filesToSend);
+
+  const updatedUser = await User.findByIdAndUpdate(user._id, {
+    photo: updatedPhotoUrl?.toString(),
+  });
+
+  if (!updatedUser) {
+    return res.status(404).json({ status: "" });
+  }
+
+  unlinkFiles(files);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: updatedUser,
+    },
+  });
+});
+
 module.exports = {
   addUser,
   deleteUser,
@@ -161,4 +253,6 @@ module.exports = {
   updateUser,
   addUsers,
   deleteAllUsers,
+  userDetails,
+  updateProfilePicController,
 };

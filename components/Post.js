@@ -1,14 +1,8 @@
-import {
-  Button,
-  IconButton,
-  Paper,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { IconButton, Paper, Typography } from "@mui/material";
 import FilePreview from "./Tweet/FilePreview";
 import PostHeader from "./posts/PostHeader";
 import { MdComment, MdThumbUp } from "react-icons/md";
-import { use, useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { UserContext } from "../services/userContext";
 
 const PostContent = ({ text }) => (

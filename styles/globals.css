@@ -156,7 +156,6 @@ input {
 }
 
 button {
-  width: 80px;
   padding: 10px;
   border: none;
   background-color: var(--button-color);
