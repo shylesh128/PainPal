@@ -65,15 +65,15 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const extname = allowedFileTypes.test(
-    path.extname(file.originalname).toLowerCase()
-  );
+  // const extname = allowedFileTypes.test(
+  //   path.extname(file.originalname).toLowerCase()
+  // );
 
-  if (extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error("File type not allowed"));
-  }
+  // if (extname) {
+  return cb(null, true);
+  // } else {
+  //   cb(new Error("File type not allowed"));
+  // }
 };
 
 const upload = multer({

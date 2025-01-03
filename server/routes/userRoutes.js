@@ -10,6 +10,10 @@ const {
   deleteAllUsers,
   userDetails,
   updateProfilePicController,
+  addFriendController,
+  removeFriendController,
+  getFriendsController,
+  getFriendsSuggestionsController,
 } = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authmiddleware");
 const { fileMiddleware } = require("../middlewares/filemiddleware");
@@ -28,5 +32,11 @@ router.use(authMiddleware);
 router.get("/me", userDetails);
 
 router.post("/me/photo", fileMiddleware, updateProfilePicController);
+
+router.post("/me/friends/add/:friendId", addFriendController);
+router.delete("/me/friends/remove/:friendId", removeFriendController);
+router.get("/me/friends", getFriendsController);
+
+router.get("/me/friends/suggestions", getFriendsSuggestionsController);
 
 module.exports = router;

@@ -170,6 +170,75 @@ export const UserProvider = ({ children }) => {
     router.push("/api/v1/auth/google");
   };
 
+  const addFriend = async (friendId) => {
+    try {
+      const response = await axios.post(
+        `/api/${version}/users/me/friends/add/${friendId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error adding friend:", error);
+    }
+  };
+
+  const removeFriend = async (friendId) => {
+    try {
+      const response = await axios.delete(
+        `/api/${version}/users/me/friends/remove/${friendId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      return response.data.data.user;
+    } catch (error) {
+      console.error("Error removing friend:", error);
+    }
+  };
+
+  const getFriends = async (page, limit) => {
+    try {
+      const response = await axios.get(
+        `/api/${version}/users/me/friends?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log(response.data);
+
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+  };
+
+  const getSuggestions = async (page, limit) => {
+    try {
+      const response = await axios.get(
+        `/api/${version}/users/me/friends/suggestions?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+    }
+  };
+
   const contextValue = {
     user,
     login,
@@ -182,6 +251,10 @@ export const UserProvider = ({ children }) => {
     handleGoogleLogin,
     fetchUserDetails,
     updateProfilePic,
+    addFriend,
+    removeFriend,
+    getFriends,
+    getSuggestions,
   };
 
   return (

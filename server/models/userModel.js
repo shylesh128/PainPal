@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
+    lowercase: true,
+    Unique: true,
   },
   email: {
     type: String,
@@ -29,6 +31,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  friends: [
+    {
+      friendId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      addedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
 });
 
 const User = mongoose.model("User", userSchema);

@@ -28,7 +28,7 @@ export const styles = {
     color: "#fff",
   },
   highlightedSpan: {
-    backgroundColor: "#9b7bb1",
+    backgroundColor: "#a785eb",
     padding: "2px 6px",
     color: "#292929",
     borderRadius: "8px",
@@ -55,18 +55,20 @@ export const styles = {
   },
   button: {
     backgroundColor: newColors.primary,
-    color: "#1b1b1b",
+    color: "#292929",
     cursor: "pointer",
     width: "100%",
+    fontWeight: "bold",
   },
   googleButton: {
     marginTop: "1rem",
-    color: "#1b1b1b",
+    color: "#292929",
     backgroundColor: "#f3f3f3",
     borderColor: "#ddd",
     "&:hover": {
       backgroundColor: "#f1f1f1",
     },
+    fontWeight: "bold",
     width: "100%",
   },
 };

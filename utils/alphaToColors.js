@@ -30,5 +30,7 @@ export const letterToColorMap = {
 export const getColorForUsername = (username) => {
   const firstLetter = username?.charAt(0).toUpperCase();
 
-  return letterToColorMap[firstLetter] || "#000000";
+  // return letterToColorMap[firstLetter] || "#000000";
+  return "#a785eb";
+  // return "#7d6c91";
 };

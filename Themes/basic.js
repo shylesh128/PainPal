@@ -1,7 +1,7 @@
 const colors = {
   colorActive: "#f0f0f0" /* Slightly lighter color for active elements */,
-  colorInActive: "#7d6c91" /* Muted purple for inactive state */,
-  bgColorActive: "#7d6c91" /* Matching the active color to the primary */,
+  colorInActive: "#a785eb" /* Muted purple for inactive state */,
+  bgColorActive: "#a785eb" /* Matching the active color to the primary */,
   bgColorInActive: "#d1d1d1" /* Light grey for inactive backgrounds */,
   buttonColorInactive: "#575757" /* Subtle grey for inactive buttons */,
   backColor: "#2a2a2a" /* Consistent dark background */,
@@ -9,7 +9,7 @@ const colors = {
   checkBox: "#8e8e8e" /* Muted grey for checkbox elements */,
   iconInActive: "#b0b0b0" /* Light grey for inactive icons */,
   linkInActive: "#8e8e8e" /* Soft grey for inactive links */,
-  primaryLight: "#7d6c91" /* Lightened primary color for softer highlights */,
+  primaryLight: "#a785eb" /* Lightened primary color for softer highlights */,
   titleColor: "#d0d0d0" /* Light grey for titles and headings */,
 };
 

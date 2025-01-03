@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/userModel");
 const Tweet = require("../models/tweetModel");
@@ -246,6 +247,215 @@ const updateProfilePicController = catchAsync(async (req, res, next) => {
   });
 });
 
+const addFriendController = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const userId = user._id;
+  const { friendId } = req.params;
+
+  // Convert friendId to an ObjectId
+  const friendObjectId = new mongoose.Types.ObjectId(friendId);
+
+  // Ensure userId and friendId are not the same
+  if (userId.equals(friendObjectId)) {
+    return next(new appError("You can't add yourself as a friend.", 400));
+  }
+
+  // Check if the friend exists
+  const friend = await User.findById(friendObjectId);
+  if (!friend) {
+    return next(new appError("Friend not found.", 404));
+  }
+
+  // Ensure the user isn't already friends
+  const isAlreadyFriend = user.friends.some((friend) =>
+    friend.friendId.equals(friendObjectId)
+  );
+  if (isAlreadyFriend) {
+    return next(new appError("You are already friends.", 400));
+  }
+
+  // Add friend to both users' friends list with addedAt timestamp
+  user.friends.push({
+    friendId: friendObjectId,
+    addedAt: new Date(),
+  });
+
+  friend.friends.push({
+    friendId: userId,
+    addedAt: new Date(),
+  });
+
+  // Save both users
+  await user.save();
+  await friend.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Friend added successfully.",
+  });
+});
+
+const removeFriendController = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const userId = user._id;
+  const { friendId } = req.params;
+
+  if (userId === friendId) {
+    return next(new appError("You can't remove yourself as a friend.", 400));
+  }
+
+  // Check if the friend exists
+  const friend = await User.findById(friendId);
+  if (!friend) {
+    return next(new appError("Friend not found.", 404));
+  }
+
+  // Ensure the user and friend are currently friends
+  if (!user.friends.includes(friendId)) {
+    return next(new appError("You are not friends with this user.", 400));
+  }
+
+  // Remove friend from both users' friends list
+  user.friends.pull(friendId);
+  friend.friends.pull(userId);
+
+  // Save both users
+  await user.save();
+  await friend.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Friend removed successfully.",
+  });
+});
+
+const getFriendsController = catchAsync(async (req, res, next) => {
+  const { user } = req;
+  if (!user || !user.friends) {
+    return next(new appError("User data is incomplete or missing", 400));
+  }
+
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  const total = user.friends.length;
+
+  if (total === 0) {
+    return res.status(200).json({
+      status: "success",
+      results: 0,
+      total: 0,
+      data: {
+        friends: [],
+      },
+    });
+  }
+
+  const friends = await User.aggregate([
+    {
+      $match: { _id: { $in: user.friends.map((friend) => friend.friendId) } },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id",
+        foreignField: "_id",
+        as: "friendDetails",
+      },
+    },
+    {
+      $unwind: "$friendDetails",
+    },
+    {
+      $project: {
+        name: "$friendDetails.name",
+        email: "$friendDetails.email",
+        photo: "$friendDetails.photo",
+        addedAt: {
+          $let: {
+            vars: {
+              friendData: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: user.friends,
+                      as: "friend",
+                      cond: { $eq: ["$$friend.friendId", "$_id"] },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+            in: { $ifNull: ["$$friendData.addedAt", null] },
+          },
+        },
+      },
+    },
+    {
+      $skip: skip,
+    },
+    {
+      $limit: limit,
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    results: friends.length,
+    total,
+    data: {
+      friends,
+    },
+  });
+});
+
+const getFriendsSuggestionsController = catchAsync(async (req, res, next) => {
+  const { user } = req;
+  if (!user || !user.friends) {
+    return next(new appError("User data is incomplete or missing", 400));
+  }
+
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const skip = (page - 1) * limit;
+
+  // Use the aggregation pipeline to find friends' suggestions
+  const friends = await User.aggregate([
+    {
+      $match: { _id: { $nin: [...user.friends, user._id] } }, // Exclude the user's friends and the user themselves
+    },
+    {
+      $project: {
+        name: 1,
+        email: 1,
+        photo: 1,
+      },
+    },
+    {
+      $skip: skip, // Skip for pagination
+    },
+    {
+      $limit: limit, // Limit for pagination
+    },
+  ]);
+
+  // Get the total number of users who are not the current user or in the user's friends list
+  const total = await User.countDocuments({
+    _id: { $nin: [...user.friends, user._id] },
+  });
+
+  res.status(200).json({
+    status: "success",
+    results: friends.length,
+    total,
+    data: {
+      friends,
+    },
+  });
+});
+
 module.exports = {
   addUser,
   deleteUser,
@@ -255,4 +465,8 @@ module.exports = {
   deleteAllUsers,
   userDetails,
   updateProfilePicController,
+  addFriendController,
+  removeFriendController,
+  getFriendsController,
+  getFriendsSuggestionsController,
 };

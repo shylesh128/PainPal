@@ -4,11 +4,14 @@ import { useRouter } from "next/router";
 import { UserContext } from "../services/userContext";
 import AnalyticsSection from "../components/profile/AnalyticsSection";
 import ProfileHeader from "../components/profile/ProfileHeader";
+import SliderCards from "../components/friends/FriendsSlider";
+import SuggestionSection from "../components/friends/SuggestionSection";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
   const router = useRouter();
-  const { fetchUserDetails } = useContext(UserContext);
+  const { fetchUserDetails, getSuggestions, getFriends } =
+    useContext(UserContext);
   const [profilePic, setProfilePic] = useState("");
   const [likes, setLikes] = useState([]);
   const [tweets, setTweets] = useState([]);
@@ -72,6 +75,12 @@ const Profile = () => {
         comments={comments}
         loading={loading}
       />
+
+      {/* Friends Section */}
+      <SliderCards />
+
+      {/* Suggestions */}
+      <SuggestionSection />
     </Box>
   );
 };
