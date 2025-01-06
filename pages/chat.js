@@ -171,7 +171,7 @@ export default function Chat() {
                     <MessageBubble
                       sender={message.userId === user.name}
                       message={message.msg}
-                      timestamp={formatTimestamp(message.timestamp)}
+                      timestamp={message.timestamp}
                     />
                   </div>
                 </li>
