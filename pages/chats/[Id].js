@@ -1,70 +1,13 @@
 import { useState, useEffect, useRef, useContext } from "react";
 import { useRouter } from "next/router";
-import {
-  Box,
-  Typography,
-  Avatar,
-  TextField,
-  Button,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-} from "@mui/material";
+import { Box } from "@mui/material";
 import io from "socket.io-client";
 import { UserContext } from "../../services/userContext";
-import { MdArrowBack } from "react-icons/md";
-import { newColors } from "../../Themes/newColors";
+import ChatList from "../../components/chat/ChatList";
+import ChatHeader from "../../components/chat/ChatHeader";
+import ChatInput from "../../components/chat/ChatInput";
 
 let socket;
-
-function ChatList(props) {
-  return (
-    <List sx={{ padding: 0 }}>
-      {props.messages.map((msg, index) => (
-        <ListItem
-          key={index}
-          sx={{
-            display: "flex",
-            justifyContent:
-              msg.sender._id === props.user._id ? "flex-end" : "flex-start",
-            padding: "4px",
-            // marginBottom: "8px",
-          }}
-        >
-          <Box
-            sx={{
-              backgroundColor:
-                msg.sender._id === props.user._id
-                  ? newColors.secondary
-                  : newColors.secondary,
-              color: newColors.text,
-              borderRadius:
-                msg.sender._id === props.user._id
-                  ? "16px 4px 16px 16px"
-                  : "4px 16px 16px 16px",
-              padding: "12px 16px",
-              maxWidth: "60%",
-              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-              textAlign: msg.sender._id === props.user._id ? "right" : "left",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              position: "relative",
-            }}
-          >
-            <Typography variant="body1" sx={{ marginBottom: "4px" }}>
-              {msg.text}
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#b0b0b0" }}>
-              {msg.sender._id === props.user._id ? "You" : props.name}
-            </Typography>
-          </Box>
-        </ListItem>
-      ))}
-      <div ref={props.messagesEndRef} />
-    </List>
-  );
-}
 
 export default function ChatPage() {
   const router = useRouter();
@@ -76,24 +19,81 @@ export default function ChatPage() {
   const [conversationId, setConversationId] = useState(null);
   const [isRoomJoined, setIsRoomJoined] = useState(false);
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFetching, setIsFetching] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const chatContainerStyle = {
+    flex: 1,
+    overflowY: "auto",
+    scrollBehavior: "smooth",
+    transition: "all 0.3s ease-in-out",
+    WebkitOverflowScrolling: "touch",
+  };
+
+  const messageContainerStyle = {
+    transition: "all 0.3s ease-in-out",
+    opacity: isFetching ? 0.7 : 1,
+  };
+
+  const fetchConversation = async (page = 1) => {
+    if (user && Id && !isFetching && (hasNextPage || page === 1)) {
+      setIsFetching(true);
+      try {
+        const response = await getConversationWithFriend(user._id, Id, {
+          page,
+        });
+
+        const prevHeight = chatContainerRef.current?.scrollHeight || 0;
+
+        setMessages((prevMessages) => {
+          const newMessages = [...response.messages.reverse(), ...prevMessages];
+
+          if (page !== 1) {
+            requestAnimationFrame(() => {
+              if (chatContainerRef.current) {
+                const newHeight = chatContainerRef.current.scrollHeight;
+                const scrollOffset = newHeight - prevHeight;
+
+                chatContainerRef.current.style.scrollBehavior = "auto";
+                chatContainerRef.current.scrollTop = scrollOffset;
+
+                requestAnimationFrame(() => {
+                  chatContainerRef.current.style.scrollBehavior = "smooth";
+                });
+              }
+            });
+          }
+
+          return newMessages;
+        });
+
+        setFriend(response.friend);
+        setConversationId(response.conversationId);
+        setCurrentPage(page);
+        setHasNextPage(response.pagination.hasNext);
+        setTotalPages(response.pagination.totalPages);
+
+        if (page === 1) {
+          setInitialLoadComplete(true);
+        }
+      } catch (error) {
+        console.error("Error fetching conversation:", error);
+      } finally {
+        setTimeout(() => {
+          setIsFetching(false);
+        }, 300);
+      }
+    }
+  };
 
   useEffect(() => {
     socket = io(process.env.NEXT_PUBLIC_SOCKET_IO_URL, {
       query: { token },
     });
-
-    const fetchConversation = async () => {
-      if (user && Id) {
-        try {
-          const response = await getConversationWithFriend(user._id, Id);
-          setMessages(response.messages);
-          setFriend(response.friend);
-          setConversationId(response.conversationId);
-        } catch (error) {
-          console.error("Error fetching conversation:", error);
-        }
-      }
-    };
 
     if (Id) fetchConversation();
 
@@ -122,8 +122,6 @@ export default function ChatPage() {
         timestamp: message.timestamp,
       };
 
-      console.log("Received message:", structured);
-
       setMessages((prevMessages) => [...prevMessages, structured]);
     });
 
@@ -132,9 +130,61 @@ export default function ChatPage() {
     };
   }, [conversationId, isRoomJoined, friend, user]);
 
+  const handleScroll = (e) => {
+    const scrollTop = Math.abs(e.target.scrollTop);
+    if (scrollTop < 50 && !isFetching && hasNextPage) {
+      const nextPage = currentPage + 1;
+      fetchConversation(nextPage);
+    }
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const chatContainer = chatContainerRef.current;
+    let scrollTimeout;
+
+    const throttledScroll = (e) => {
+      if (!scrollTimeout) {
+        scrollTimeout = setTimeout(() => {
+          handleScroll(e);
+          scrollTimeout = null;
+        }, 100);
+      }
+    };
+
+    chatContainer.addEventListener("scroll", throttledScroll);
+
+    return () => {
+      chatContainer.removeEventListener("scroll", throttledScroll);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
+  }, [currentPage, isFetching]);
+
+  useEffect(() => {
+    if (initialLoadComplete || messages.length === 0) {
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
+    }
+  }, [initialLoadComplete]);
+
+  useEffect(() => {
+    if (initialLoadComplete && messages.length > 0) {
+      const chatContainer = chatContainerRef.current;
+      if (!chatContainer) return;
+
+      const isNearBottom =
+        chatContainer.scrollHeight -
+          chatContainer.scrollTop -
+          chatContainer.clientHeight <
+        100;
+
+      if (isNearBottom) {
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        });
+      }
+    }
+  }, [messages, initialLoadComplete]);
 
   const sendMessage = () => {
     if (newMessage.trim()) {
@@ -150,64 +200,22 @@ export default function ChatPage() {
 
   return (
     <Box sx={{ height: "90vh", display: "flex", flexDirection: "column" }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          padding: 2,
-          borderBottom: "1px solid #ccc",
-        }}
-      >
-        <IconButton onClick={() => router.back()}>
-          <MdArrowBack />
-        </IconButton>
-        <Avatar
-          alt={friend.name}
-          src={friend.avatarUrl || "/default-avatar.png"}
-        />
-        <Typography variant="h6" sx={{ marginLeft: 2 }}>
-          {friend.name}
-        </Typography>
+      <ChatHeader back={router.back} friend={friend} />
+      <Box ref={chatContainerRef} style={chatContainerStyle}>
+        <Box style={messageContainerStyle}>
+          <ChatList
+            user={user}
+            messages={messages}
+            name={friend.name}
+            messagesEndRef={messagesEndRef}
+          />
+        </Box>
       </Box>
-      <Box sx={{ flexGrow: 1, overflowY: "auto", padding: 2 }}>
-        <ChatList
-          user={user}
-          messages={messages}
-          name={friend.name}
-          messagesEndRef={messagesEndRef}
-        />
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          padding: 2,
-          borderTop: "1px solid #ccc",
-        }}
-      >
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Type a message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-          sx={{
-            color: "#ffffff",
-            "&:-webkit-autofill": {
-              WebkitBoxShadow: "0 0 0 100px #307ECC inset",
-              WebkitTextFillColor: "ffffff",
-            },
-          }}
-        />
-        <Button
-          onClick={sendMessage}
-          variant="contained"
-          sx={{ marginLeft: 1 }}
-        >
-          Send
-        </Button>
-      </Box>
+      <ChatInput
+        newMessage={newMessage}
+        setNewMessage={setNewMessage}
+        sendMessage={sendMessage}
+      />
     </Box>
   );
 }

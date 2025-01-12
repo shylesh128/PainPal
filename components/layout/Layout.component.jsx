@@ -7,6 +7,7 @@ import { styled } from "@mui/material/styles";
 
 import { UserContext } from "../../services/userContext";
 import colors from "../../Themes/basic";
+import { Box } from "@mui/material";
 
 export const Layout = ({ children }) => {
   const { user, loading } = useContext(UserContext);

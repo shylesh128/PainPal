@@ -250,19 +250,15 @@ module.exports = (httpServer) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("New client connected");
-
     // Join a specific chat room
     socket.on("joinRoom", (roomId) => {
       socket.join(roomId);
-      console.log(`User joined room: ${roomId}`);
+      // console.log(`User joined room: ${roomId}`);
     });
 
     // Listen for messages from clients
     socket.on("sendMessage", async (messageData) => {
       const { sender, receiver, text } = messageData;
-
-      console.log(messageData);
 
       // Create a unique conversation ID (you could use a combination of sender and receiver IDs)
       const conversationId =
@@ -286,8 +282,6 @@ module.exports = (httpServer) => {
           timestamp: new Date(),
           _id: message._id,
         });
-
-        console.log("Message saved:", message);
       } catch (error) {
         console.error("Error saving message:", error);
       }

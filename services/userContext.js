@@ -239,10 +239,16 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  const getConversationWithFriend = async (userId, friendId) => {
+  const getConversationWithFriend = async (
+    userId,
+    friendId,
+    options = { page: 1, limit: 10 }
+  ) => {
     try {
+      const { page, limit } = options;
       const response = await axios.get(
-        `/api/${version}/conversations/${userId}/${friendId}`
+        `/api/${version}/conversations/${userId}/${friendId}`,
+        { params: { page, limit } }
       );
       console.log(response.data);
       return response.data;
@@ -250,7 +256,6 @@ export const UserProvider = ({ children }) => {
       console.error("Error fetching conversation:", error);
     }
   };
-
   const contextValue = {
     user,
     login,

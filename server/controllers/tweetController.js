@@ -37,13 +37,53 @@ const createTweet = catchAsync(async (req, res, next) => {
   });
 });
 
+// const getAllTweets = catchAsync(async (req, res, next) => {
+//   // Pagination
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+//   const skip = (page - 1) * limit;
+
+//   const totalTweets = await Tweet.countDocuments();
+
+//   const tweets = await Tweet.find()
+//     .sort({ timeStamp: -1 })
+//     .skip(skip)
+//     .limit(limit)
+//     .populate({
+//       path: "userId",
+//       select: "name email photo",
+//     })
+//     .populate({
+//       path: "likes",
+//       select: "name photo",
+//     })
+//     .populate({
+//       path: "comments.userId",
+//       select: "name photo",
+//     });
+
+//   const nextPage = totalTweets > skip + limit ? page + 1 : null;
+
+//   res.status(200).json({
+//     status: "success",
+//     data: {
+//       tweets,
+//       pageInfo: {
+//         totalTweets,
+//         currentPage: page,
+//         nextPage,
+//       },
+//     },
+//   });
+// });
+
 const getAllTweets = catchAsync(async (req, res, next) => {
-  // Pagination
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
   const totalTweets = await Tweet.countDocuments();
+  const totalPages = Math.ceil(totalTweets / limit);
 
   const tweets = await Tweet.find()
     .sort({ timeStamp: -1 })
@@ -62,7 +102,8 @@ const getAllTweets = catchAsync(async (req, res, next) => {
       select: "name photo",
     });
 
-  const nextPage = totalTweets > skip + limit ? page + 1 : null;
+  const hasNext = page < totalPages;
+  const nextPage = hasNext ? page + 1 : null;
 
   res.status(200).json({
     status: "success",
@@ -71,6 +112,8 @@ const getAllTweets = catchAsync(async (req, res, next) => {
       pageInfo: {
         totalTweets,
         currentPage: page,
+        totalPages,
+        hasNext,
         nextPage,
       },
     },

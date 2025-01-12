@@ -4,22 +4,37 @@ const Message = require("../models/Message");
 
 const getConversation = catchAsync(async (req, res, next) => {
   const { userId, friendId } = req.params;
+  const { limit = 10, page = 1 } = req.query;
 
   try {
-    // Generate the conversationId
     const conversationId =
       userId < friendId ? `${userId}-${friendId}` : `${friendId}-${userId}`;
 
-    // Fetch the messages for the conversation
+    const totalMessages = await Message.countDocuments({ conversationId });
+
+    const totalPages = Math.ceil(totalMessages / limit);
+    const hasNext = page < totalPages;
+
     const messages = await Message.find({ conversationId })
-      .sort({ timestamp: 1 })
+      .sort({ timestamp: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
       .populate("sender", "name photo")
       .populate("receiver", "name photo");
 
-    // Fetch the friend details (excluding the current user)
     const friend = await User.findById(friendId).select("name photo");
 
-    res.status(200).json({ messages, friend, conversationId });
+    res.status(200).json({
+      messages,
+      friend,
+      conversationId,
+      pagination: {
+        currentPage: Number(page),
+        totalPages,
+        hasNext,
+        totalMessages,
+      },
+    });
   } catch (error) {
     console.error("Error fetching conversation:", error);
     res.status(500).json({ message: "Error fetching conversation" });

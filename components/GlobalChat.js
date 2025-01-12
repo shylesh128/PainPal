@@ -81,7 +81,7 @@ const GlobalChat = () => {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            e.preventDefault(); // Prevents new line in text field
+            e.preventDefault();
             sendMessage();
           }
         }}
