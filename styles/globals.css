@@ -123,7 +123,7 @@ input {
 .username {
   font-weight: 300;
   margin-right: 8px;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.3s ease-in-out;
   color: var(--username-color);
 }
@@ -189,13 +189,13 @@ button {
 }
 
 .sender-bubble {
-  background-color: var(--sender-bubble-color);
+  background-color: var(--background-color);
   float: right;
   border-top-right-radius: 5px;
 }
 
 .receiver-bubble {
-  background-color: var(--receiver-bubble-color);
+  background-color: var(--background-color);
   float: left;
   border-top-left-radius: 5px;
 }
@@ -261,4 +261,12 @@ button {
   #side-app {
     display: none;
   }
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--background-color) inset !important;
+  -webkit-text-fill-color: #ffffff !important;
 }

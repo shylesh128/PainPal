@@ -7,6 +7,7 @@ const connectionModel = require("./models/connectionModel");
 const authenticateSocket = require("./middlewares/authenticateSocket");
 const ChatMessage = require("./models/ChatMessage");
 const secretKey = process.env.SECRET_KEY;
+const MessagePersonal = require("./models/Message");
 
 module.exports = (httpServer) => {
   const io = socketIo(httpServer);
@@ -234,6 +235,62 @@ module.exports = (httpServer) => {
       socket.emit("error", { message: "Connection error." });
       socket.disconnect();
     }
+  });
+
+  io.use((socket, next) => {
+    // Perform authentication if required
+    // Example: Check token in socket.handshake.query
+    const token = socket.handshake.query.token;
+    if (token) {
+      // Validate token logic here
+      next();
+    } else {
+      next(new Error("Authentication error"));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    // Join a specific chat room
+    socket.on("joinRoom", (roomId) => {
+      socket.join(roomId);
+      // console.log(`User joined room: ${roomId}`);
+    });
+
+    // Listen for messages from clients
+    socket.on("sendMessage", async (messageData) => {
+      const { sender, receiver, text } = messageData;
+
+      // Create a unique conversation ID (you could use a combination of sender and receiver IDs)
+      const conversationId =
+        sender < receiver ? `${sender}-${receiver}` : `${receiver}-${sender}`;
+
+      // Save the message to the database
+      const message = new MessagePersonal({
+        sender,
+        receiver,
+        text,
+        conversationId,
+      });
+
+      try {
+        await message.save();
+
+        // Broadcast the message to the receiver's room
+        io.to(conversationId).emit("message", {
+          sender,
+          text,
+          timestamp: new Date(),
+          _id: message._id,
+        });
+      } catch (error) {
+        console.error("Error saving message:", error);
+      }
+    });
+
+    // Handle disconnection
+    socket.on("disconnect", () => {
+      console.log("Client disconnected");
+    });
   });
 
   return io;
