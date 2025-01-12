@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useContext } from "react";
 import { useRouter } from "next/router";
-import { Box } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
 import io from "socket.io-client";
 import { UserContext } from "../../services/userContext";
 import ChatList from "../../components/chat/ChatList";
 import ChatHeader from "../../components/chat/ChatHeader";
 import ChatInput from "../../components/chat/ChatInput";
+import { MdArrowDownward, MdKeyboardDoubleArrowDown } from "react-icons/md";
+import { newColors } from "../../Themes/newColors";
 
 let socket;
 
@@ -25,17 +27,18 @@ export default function ChatPage() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const chatContainerStyle = {
     flex: 1,
     overflowY: "auto",
     scrollBehavior: "smooth",
-    transition: "all 0.3s ease-in-out",
+    transition: "all 0.5s ease-in-out",
     WebkitOverflowScrolling: "touch",
   };
 
   const messageContainerStyle = {
-    transition: "all 0.3s ease-in-out",
+    transition: "all 0.5s ease-in-out",
     opacity: isFetching ? 0.7 : 1,
   };
 
@@ -85,7 +88,7 @@ export default function ChatPage() {
       } finally {
         setTimeout(() => {
           setIsFetching(false);
-        }, 300);
+        }, 500);
       }
     }
   };
@@ -131,13 +134,17 @@ export default function ChatPage() {
   }, [conversationId, isRoomJoined, friend, user]);
 
   const handleScroll = (e) => {
-    const scrollTop = Math.abs(e.target.scrollTop);
-    if (scrollTop < 50 && !isFetching && hasNextPage) {
+    const scrollTop = e.target.scrollTop;
+    const scrollHeight = e.target.scrollHeight;
+    const clientHeight = e.target.clientHeight;
+
+    setShowScrollButton(scrollHeight - scrollTop > clientHeight + 100);
+
+    if (Math.abs(scrollTop) < 50 && !isFetching && hasNextPage) {
       const nextPage = currentPage + 1;
       fetchConversation(nextPage);
     }
   };
-
   useEffect(() => {
     const chatContainer = chatContainerRef.current;
     let scrollTimeout;
@@ -193,9 +200,14 @@ export default function ChatPage() {
         receiver: Id,
         text: newMessage,
       };
+
       socket.emit("sendMessage", messageData);
       setNewMessage("");
     }
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -211,6 +223,22 @@ export default function ChatPage() {
           />
         </Box>
       </Box>
+
+      {showScrollButton && (
+        <IconButton
+          onClick={scrollToBottom}
+          style={{
+            position: "fixed",
+            bottom: 100,
+            right: 20,
+            zIndex: 1000,
+            backgroundColor: newColors.background,
+          }}
+          color="primary"
+        >
+          <MdKeyboardDoubleArrowDown />
+        </IconButton>
+      )}
       <ChatInput
         newMessage={newMessage}
         setNewMessage={setNewMessage}
