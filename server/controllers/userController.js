@@ -421,10 +421,17 @@ const getFriendsSuggestionsController = catchAsync(async (req, res, next) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
+  // Get array of friend IDs
+  const friendIds = user.friends.map((friend) => friend.friendId);
+
   // Use the aggregation pipeline to find friends' suggestions
   const friends = await User.aggregate([
     {
-      $match: { _id: { $nin: [...user.friends, user._id] } }, // Exclude the user's friends and the user themselves
+      $match: {
+        _id: {
+          $nin: [...friendIds, user._id],
+        },
+      },
     },
     {
       $project: {
@@ -434,16 +441,16 @@ const getFriendsSuggestionsController = catchAsync(async (req, res, next) => {
       },
     },
     {
-      $skip: skip, // Skip for pagination
+      $skip: skip,
     },
     {
-      $limit: limit, // Limit for pagination
+      $limit: limit,
     },
   ]);
 
   // Get the total number of users who are not the current user or in the user's friends list
   const total = await User.countDocuments({
-    _id: { $nin: [...user.friends, user._id] },
+    _id: { $nin: [...friendIds, user._id] },
   });
 
   res.status(200).json({
@@ -455,7 +462,6 @@ const getFriendsSuggestionsController = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 module.exports = {
   addUser,
   deleteUser,
