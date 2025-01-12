@@ -239,6 +239,18 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  const getConversationWithFriend = async (userId, friendId) => {
+    try {
+      const response = await axios.get(
+        `/api/${version}/conversations/${userId}/${friendId}`
+      );
+      console.log(response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+    }
+  };
+
   const contextValue = {
     user,
     login,
@@ -255,6 +267,8 @@ export const UserProvider = ({ children }) => {
     removeFriend,
     getFriends,
     getSuggestions,
+    token,
+    getConversationWithFriend,
   };
 
   return (

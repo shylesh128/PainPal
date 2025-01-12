@@ -64,6 +64,8 @@ export const Layout = ({ children }) => {
     setOpen(!open);
   };
 
+  const isChatOpened = router.pathname.startsWith("/chats/");
+
   if (loading || pageLoading)
     return (
       <div className="loadingScreen">
@@ -81,7 +83,10 @@ export const Layout = ({ children }) => {
       <div id="main">
         {user ? (
           <>
-            <div className="rightContainer" style={{ marginTop: "4rem" }}>
+            <div
+              className="rightContainer"
+              style={{ marginTop: isChatOpened ? "4rem" : "4rem" }}
+            >
               <TopAppBar />
 
               {children}
