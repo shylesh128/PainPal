@@ -6,6 +6,8 @@ import {
   ListItemText,
   Avatar,
   CircularProgress,
+  Typography,
+  Divider,
 } from "@mui/material";
 import { UserContext } from "../services/userContext";
 import { useRouter } from "next/router";
@@ -66,39 +68,56 @@ export default function List() {
   }, [loadMoreFriends, hasMore, loading]);
 
   return (
-    <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-      <h1>Friends</h1>
-      <MUIList>
+    <div style={{ maxWidth: "600px", margin: "0 auto", padding: "16px" }}>
+      <Typography
+        variant="h6"
+        style={{ fontWeight: "bold", marginBottom: "16px" }}
+      >
+        Friends
+      </Typography>
+      <MUIList style={{ padding: 0 }}>
         {friends.map((friend) => (
-          <ListItem
-            key={friend._id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "10px",
-              borderBottom: "1px solid #ddd",
-            }}
-            onClick={() => router.push(`/chats/${friend._id}`)}
-          >
-            <ListItemAvatar>
-              <Avatar
-                alt={friend.name}
-                src={friend.avatarUrl || "/default-avatar.png"}
+          <div key={friend._id}>
+            <ListItem
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "12px 16px",
+                cursor: "pointer",
+              }}
+              onClick={() => router.push(`/chats/${friend._id}`)}
+            >
+              <ListItemAvatar>
+                <Avatar
+                  alt={friend.name}
+                  src={friend.avatarUrl || "/default-avatar.png"}
+                  style={{ width: "48px", height: "48px" }}
+                />
+              </ListItemAvatar>
+              <ListItemText
+                primary={
+                  <Typography style={{ fontWeight: "500", fontSize: "16px" }}>
+                    {friend.name}
+                  </Typography>
+                }
               />
-            </ListItemAvatar>
-            <ListItemText primary={friend.name} />
-          </ListItem>
+            </ListItem>
+            <Divider style={{ marginLeft: "72px" }} />
+          </div>
         ))}
       </MUIList>
       {loading && (
-        <div style={{ textAlign: "center" }}>
-          <CircularProgress />
+        <div style={{ textAlign: "center", padding: "16px" }}>
+          <CircularProgress size={24} />
         </div>
       )}
       {!hasMore && (
-        <p style={{ textAlign: "center", color: "gray" }}>
+        <Typography
+          variant="body2"
+          style={{ textAlign: "center", color: "gray", padding: "16px" }}
+        >
           No more friends to load
-        </p>
+        </Typography>
       )}
     </div>
   );
