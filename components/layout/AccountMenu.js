@@ -20,6 +20,7 @@ import {
   MdLogout,
   MdNotificationsNone,
 } from "react-icons/md";
+import { FaUserFriends } from "react-icons/fa";
 
 import MenuItemAcc from "./MenuItemAcc";
 import ProfileForItem from "./ProfileForItem";
@@ -56,6 +57,16 @@ const AccountMenu = () => {
           justifyContent: "center",
         }}
       >
+        <Box sx={{ padding: "4px" }}>
+          <FaUserFriends
+            fontSize="large"
+            color={colors.bgColorActive}
+            size={30}
+            onClick={() => {
+              router.push("/friends");
+            }}
+          />
+        </Box>
         <Box sx={{ padding: "4px" }}>
           <MdChat
             fontSize="large"

@@ -9,7 +9,7 @@ import {
   Typography,
   Divider,
 } from "@mui/material";
-import { UserContext } from "../services/userContext";
+import { UserContext } from "../../services/userContext";
 import { useRouter } from "next/router";
 
 export default function List() {
