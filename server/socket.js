@@ -10,6 +10,12 @@ const presenceService = require("./services/presenceService");
 
 const secretKey = process.env.SECRET_KEY;
 
+// Grace period for random chat reconnection (30 seconds)
+const RANDOM_CHAT_GRACE_PERIOD = 30 * 1000;
+
+// Track disconnected random chat users: { odisplayId: { conversationId, partnerId, disconnectedAt, timer } }
+const disconnectedRandomUsers = new Map();
+
 /**
  * Socket.io Module
  * Optimized real-time communication with namespaces
@@ -312,6 +318,51 @@ module.exports = (httpServer) => {
     // ==================== Random Pairing Events ====================
 
     /**
+     * Check if user was in a random chat and can reconnect
+     */
+    socket.on("random:check-session", async (conversationId, callback) => {
+      try {
+        // Check if there's a pending reconnection for this user
+        const pendingSession = disconnectedRandomUsers.get(userId);
+        
+        if (pendingSession && pendingSession.conversationId === conversationId) {
+          // Clear the grace period timer
+          if (pendingSession.timer) {
+            clearTimeout(pendingSession.timer);
+          }
+          disconnectedRandomUsers.delete(userId);
+          
+          // Get the conversation
+          const conversation = await chatService.getConversation(conversationId, userId);
+          
+          if (conversation && conversation.pairStatus === "paired" && conversation.isActive) {
+            await conversation.populate("participants.user", "name photo");
+            
+            // Rejoin the conversation room
+            socket.join(`conv:${conversationId}`);
+            
+            // Notify partner that user reconnected
+            socket.to(`conv:${conversationId}`).emit("random:partner-reconnected", {
+              conversationId,
+              userId,
+            });
+            
+            callback?.({
+              success: true,
+              reconnected: true,
+              conversation,
+            });
+            return;
+          }
+        }
+        
+        callback?.({ success: false, reconnected: false });
+      } catch (error) {
+        callback?.({ error: error.message, reconnected: false });
+      }
+    });
+
+    /**
      * Join random pairing
      */
     socket.on("random:join", async (callback) => {
@@ -320,6 +371,9 @@ module.exports = (httpServer) => {
         await conversation.populate("participants.user", "name photo");
 
         socket.join(`conv:${conversation._id}`);
+        
+        // Store the conversation ID on socket for disconnect handling
+        socket.randomConversationId = conversation._id.toString();
 
         if (conversation.pairStatus === "paired") {
           // Notify both users
@@ -339,11 +393,19 @@ module.exports = (httpServer) => {
     });
 
     /**
-     * End random pairing
+     * End random pairing (intentional end)
      */
     socket.on("random:end", async (conversationId, callback) => {
       try {
         await chatService.endRandomPairing(conversationId, userId);
+
+        // Clear any pending reconnection for this conversation
+        for (const [pendingUserId, session] of disconnectedRandomUsers.entries()) {
+          if (session.conversationId === conversationId) {
+            if (session.timer) clearTimeout(session.timer);
+            disconnectedRandomUsers.delete(pendingUserId);
+          }
+        }
 
         chatNamespace.to(`conv:${conversationId}`).emit("random:ended", {
           conversationId,
@@ -351,6 +413,7 @@ module.exports = (httpServer) => {
         });
 
         socket.leave(`conv:${conversationId}`);
+        socket.randomConversationId = null;
 
         callback?.({ success: true });
       } catch (error) {
@@ -365,6 +428,59 @@ module.exports = (httpServer) => {
 
       await presenceService.setOffline(userId);
       broadcastPresenceUpdate(socket, userId, "offline");
+
+      // Handle random chat grace period
+      const randomConvId = socket.randomConversationId;
+      if (randomConvId) {
+        try {
+          const conversation = await Conversation.findById(randomConvId);
+          
+          if (conversation && conversation.pairStatus === "paired" && conversation.isActive) {
+            // Find the partner
+            const partner = conversation.participants.find(
+              (p) => p.user.toString() !== userId
+            );
+            const partnerId = partner?.user?.toString();
+
+            // Notify partner that user disconnected temporarily
+            if (partnerId) {
+              chatNamespace.to(`conv:${randomConvId}`).emit("random:partner-disconnected", {
+                conversationId: randomConvId,
+                userId,
+                gracePeriod: RANDOM_CHAT_GRACE_PERIOD / 1000,
+              });
+            }
+
+            // Start grace period timer
+            const timer = setTimeout(async () => {
+              // Grace period expired - end the chat
+              disconnectedRandomUsers.delete(userId);
+              
+              try {
+                await chatService.endRandomPairing(randomConvId, userId, "disconnect_timeout");
+                
+                chatNamespace.to(`conv:${randomConvId}`).emit("random:ended", {
+                  conversationId: randomConvId,
+                  endedBy: userId,
+                  reason: "disconnect_timeout",
+                });
+              } catch (err) {
+                console.error("Error ending random chat after grace period:", err);
+              }
+            }, RANDOM_CHAT_GRACE_PERIOD);
+
+            // Store the pending reconnection
+            disconnectedRandomUsers.set(userId, {
+              conversationId: randomConvId,
+              partnerId,
+              disconnectedAt: Date.now(),
+              timer,
+            });
+          }
+        } catch (error) {
+          console.error("Error handling random chat disconnect:", error);
+        }
+      }
     });
   });
 

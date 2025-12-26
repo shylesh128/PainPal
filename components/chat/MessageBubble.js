@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Box,
   Typography,
-  Avatar,
   IconButton,
   Menu,
   MenuItem,
@@ -17,6 +16,7 @@ import {
   MdEdit,
 } from "react-icons/md";
 import { useAuthStore } from "../../services/stores/authStore";
+import { UserAvatar } from "../common/UserAvatar";
 import { newColors } from "../../Themes/newColors";
 
 /**
@@ -112,17 +112,12 @@ const MessageBubble = ({
     >
       {/* Avatar */}
       {showAvatar && !isSender && (
-        <Avatar
-          src={message.sender?.photo}
-          sx={{
-            width: 32,
-            height: 32,
-            bgcolor: newColors.primary,
-            fontSize: 14,
-          }}
-        >
-          {message.sender?.name?.[0]?.toUpperCase()}
-        </Avatar>
+        <UserAvatar
+          user={message.sender}
+          size={32}
+          showActions={true}
+          disableMessage={false}
+        />
       )}
 
       {/* Message Content */}

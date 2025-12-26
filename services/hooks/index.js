@@ -10,6 +10,7 @@ export {
   useAddFriend,
   useRemoveFriend,
   useUpdateProfilePic,
+  useSearchUsers,
 } from "./useUser";
 
 // Tweet hooks

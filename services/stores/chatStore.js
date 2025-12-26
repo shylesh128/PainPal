@@ -20,10 +20,38 @@ export const useChatStore = create((set, get) => ({
   // Unread state
   totalUnread: 0,
 
+  // Random chat reconnection state
+  partnerDisconnected: false,
+  reconnectGracePeriod: 0,
+  reconnectTimer: null,
+
   // Actions
   setActiveConversation: (conversation) => set({ activeConversation: conversation }),
   setMessages: (messages) => set({ messages }),
   setConversations: (conversations) => set({ conversations }),
+
+  // Helper to wait for socket connection
+  waitForSocket: (timeout = 5000) => {
+    return new Promise((resolve, reject) => {
+      const { socket, isConnected } = get();
+      if (socket && isConnected) {
+        resolve(socket);
+        return;
+      }
+
+      const start = Date.now();
+      const check = setInterval(() => {
+        const { socket: s, isConnected: c } = get();
+        if (s && c) {
+          clearInterval(check);
+          resolve(s);
+        } else if (Date.now() - start > timeout) {
+          clearInterval(check);
+          reject(new Error("Socket connection timeout"));
+        }
+      }, 100);
+    });
+  },
 
   // Initialize socket connection
   initSocket: (token) => {
@@ -146,13 +174,75 @@ export const useChatStore = create((set, get) => ({
 
     // Random pairing events
     newSocket.on("random:paired", ({ conversation }) => {
-      set({ activeConversation: conversation });
+      // Store conversation ID in sessionStorage for reconnection
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("randomChatSession", conversation._id);
+      }
+      set({ activeConversation: conversation, partnerDisconnected: false });
     });
 
-    newSocket.on("random:ended", ({ conversationId }) => {
-      const { activeConversation } = get();
+    newSocket.on("random:ended", ({ conversationId, reason }) => {
+      const { activeConversation, reconnectTimer } = get();
+      
+      // Clear reconnection timer
+      if (reconnectTimer) {
+        clearInterval(reconnectTimer);
+      }
+      
+      // Clear session storage
+      if (typeof window !== "undefined") {
+        sessionStorage.removeItem("randomChatSession");
+      }
+      
       if (activeConversation?._id === conversationId) {
-        set({ activeConversation: null, messages: [] });
+        set({ 
+          activeConversation: null, 
+          messages: [], 
+          partnerDisconnected: false,
+          reconnectGracePeriod: 0,
+          reconnectTimer: null,
+        });
+      }
+    });
+
+    // Partner temporarily disconnected (grace period started)
+    newSocket.on("random:partner-disconnected", ({ conversationId, gracePeriod }) => {
+      const { activeConversation } = get();
+      
+      if (activeConversation?._id === conversationId) {
+        // Start countdown timer
+        let remaining = gracePeriod;
+        
+        const timer = setInterval(() => {
+          remaining -= 1;
+          set({ reconnectGracePeriod: remaining });
+          
+          if (remaining <= 0) {
+            clearInterval(timer);
+          }
+        }, 1000);
+        
+        set({ 
+          partnerDisconnected: true, 
+          reconnectGracePeriod: gracePeriod,
+          reconnectTimer: timer,
+        });
+      }
+    });
+
+    // Partner reconnected
+    newSocket.on("random:partner-reconnected", ({ conversationId }) => {
+      const { activeConversation, reconnectTimer } = get();
+      
+      if (activeConversation?._id === conversationId) {
+        if (reconnectTimer) {
+          clearInterval(reconnectTimer);
+        }
+        set({ 
+          partnerDisconnected: false, 
+          reconnectGracePeriod: 0,
+          reconnectTimer: null,
+        });
       }
     });
 
@@ -170,63 +260,80 @@ export const useChatStore = create((set, get) => ({
   },
 
   // API Methods
-  fetchConversations: async (type = null) => {
-    try {
-      const params = type ? `?type=${type}` : "";
-      const response = await api.get(`/chat/conversations${params}`);
-      set({ conversations: response.data.data.conversations });
-      return response.data.data;
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
-      return { conversations: [] };
-    }
+  fetchConversations: (type = null) => {
+    const params = type ? `?type=${type}` : "";
+    return api.get(`/chat/conversations${params}`)
+      .then((response) => {
+        set({ conversations: response.data.data.conversations });
+        return response.data.data;
+      })
+      .catch((error) => {
+        // Silently ignore canceled requests (e.g., from request deduplication)
+        if (error.code === "ERR_CANCELED") {
+          return { conversations: [] };
+        }
+        console.error("Error fetching conversations:", error);
+        return { conversations: [] };
+      });
   },
 
-  fetchMessages: async (conversationId, cursor = null) => {
-    try {
-      set({ loadingMessages: true });
-      const params = cursor ? `?cursor=${cursor}` : "";
-      const response = await api.get(`/chat/conversations/${conversationId}/messages${params}`);
-
-      if (cursor) {
-        set((state) => ({
-          messages: [...response.data.data.messages, ...state.messages],
-        }));
-      } else {
-        set({ messages: response.data.data.messages.reverse() });
-      }
-
-      return response.data.data;
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      return { messages: [] };
-    } finally {
-      set({ loadingMessages: false });
-    }
+  fetchMessages: (conversationId, cursor = null) => {
+    set({ loadingMessages: true });
+    const params = cursor ? `?cursor=${cursor}` : "";
+    return api.get(`/chat/conversations/${conversationId}/messages${params}`)
+      .then((response) => {
+        if (cursor) {
+          set((state) => ({
+            messages: [...response.data.data.messages, ...state.messages],
+          }));
+        } else {
+          set({ messages: response.data.data.messages.reverse() });
+        }
+        return response.data.data;
+      })
+      .catch((error) => {
+        // Silently ignore canceled requests (e.g., from request deduplication)
+        if (error.code === "ERR_CANCELED") {
+          return { messages: [] };
+        }
+        console.error("Error fetching messages:", error);
+        return { messages: [] };
+      })
+      .finally(() => {
+        set({ loadingMessages: false });
+      });
   },
 
-  searchMessages: async (conversationId, query) => {
-    try {
-      const response = await api.get(
-        `/chat/conversations/${conversationId}/messages/search?q=${encodeURIComponent(query)}`
-      );
-      return response.data.data;
-    } catch (error) {
-      console.error("Error searching messages:", error);
-      return { messages: [] };
-    }
+  searchMessages: (conversationId, query) => {
+    return api.get(
+      `/chat/conversations/${conversationId}/messages/search?q=${encodeURIComponent(query)}`
+    )
+      .then((response) => response.data.data)
+      .catch((error) => {
+        // Silently ignore canceled requests
+        if (error.code === "ERR_CANCELED") {
+          return { messages: [] };
+        }
+        console.error("Error searching messages:", error);
+        return { messages: [] };
+      });
   },
 
-  createConversation: async (type, data) => {
-    try {
-      const response = await api.post("/chat/conversations", { type, ...data });
-      const conversation = response.data.data.conversation;
-      set((state) => ({ conversations: [conversation, ...state.conversations] }));
-      return conversation;
-    } catch (error) {
-      console.error("Error creating conversation:", error);
-      throw error;
-    }
+  createConversation: (type, data) => {
+    return api.post("/chat/conversations", { type, ...data })
+      .then((response) => {
+        const conversation = response.data.data.conversation;
+        set((state) => ({ conversations: [conversation, ...state.conversations] }));
+        return conversation;
+      })
+      .catch((error) => {
+        // Silently ignore canceled requests
+        if (error.code === "ERR_CANCELED") {
+          return null;
+        }
+        console.error("Error creating conversation:", error);
+        throw error;
+      });
   },
 
   createGroup: async (name, participantIds) => {
@@ -238,23 +345,22 @@ export const useChatStore = create((set, get) => ({
   },
 
   // Socket Methods
-  joinConversation: (conversationId) => {
-    return new Promise((resolve, reject) => {
-      const { socket } = get();
-      if (!socket) {
-        reject(new Error("Socket not connected"));
-        return;
-      }
-
-      socket.emit("conversation:join", conversationId, (response) => {
-        if (response.error) {
-          reject(new Error(response.error));
-        } else {
-          set({ activeConversation: response.conversation });
-          resolve(response.conversation);
-        }
+  joinConversation: async (conversationId) => {
+    try {
+      const socket = await get().waitForSocket();
+      return new Promise((resolve, reject) => {
+        socket.emit("conversation:join", conversationId, (response) => {
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            set({ activeConversation: response.conversation });
+            resolve(response.conversation);
+          }
+        });
       });
-    });
+    } catch (error) {
+      throw error;
+    }
   },
 
   leaveConversation: (conversationId) => {
@@ -267,22 +373,21 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  sendMessage: (conversationId, content, replyTo = null) => {
-    return new Promise((resolve, reject) => {
-      const { socket } = get();
-      if (!socket) {
-        reject(new Error("Socket not connected"));
-        return;
-      }
-
-      socket.emit("message:send", { conversationId, content, replyTo }, (response) => {
-        if (response.error) {
-          reject(new Error(response.error));
-        } else {
-          resolve(response.message);
-        }
+  sendMessage: async (conversationId, content, replyTo = null) => {
+    try {
+      const socket = await get().waitForSocket();
+      return new Promise((resolve, reject) => {
+        socket.emit("message:send", { conversationId, content, replyTo }, (response) => {
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            resolve(response.message);
+          }
+        });
       });
-    });
+    } catch (error) {
+      throw error;
+    }
   },
 
   markAsRead: (conversationId, messageIds = null) => {
@@ -312,41 +417,106 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  joinRandomPairing: () => {
-    return new Promise((resolve, reject) => {
-      const { socket } = get();
-      if (!socket) {
-        reject(new Error("Socket not connected"));
-        return;
-      }
+  // Check if there's a random chat session to resume
+  checkRandomSession: async () => {
+    // Check sessionStorage for existing session
+    if (typeof window === "undefined") {
+      return { reconnected: false };
+    }
 
-      socket.emit("random:join", (response) => {
-        if (response.error) {
-          reject(new Error(response.error));
-        } else {
-          resolve(response);
-        }
+    const sessionId = sessionStorage.getItem("randomChatSession");
+    if (!sessionId) {
+      return { reconnected: false };
+    }
+
+    try {
+      const socket = await get().waitForSocket();
+      return new Promise((resolve) => {
+        socket.emit("random:check-session", sessionId, (response) => {
+          if (response.error) {
+            sessionStorage.removeItem("randomChatSession");
+            resolve({ reconnected: false });
+          } else if (response.reconnected) {
+            set({ 
+              activeConversation: response.conversation,
+              partnerDisconnected: false,
+              reconnectGracePeriod: 0,
+            });
+            resolve({ reconnected: true, conversation: response.conversation });
+          } else {
+            sessionStorage.removeItem("randomChatSession");
+            resolve({ reconnected: false });
+          }
+        });
       });
-    });
+    } catch (error) {
+      sessionStorage.removeItem("randomChatSession");
+      return { reconnected: false };
+    }
   },
 
-  endRandomPairing: (conversationId) => {
-    return new Promise((resolve, reject) => {
-      const { socket } = get();
-      if (!socket) {
-        reject(new Error("Socket not connected"));
-        return;
-      }
-
-      socket.emit("random:end", conversationId, (response) => {
-        if (response.error) {
-          reject(new Error(response.error));
-        } else {
-          set({ activeConversation: null, messages: [] });
-          resolve();
-        }
+  joinRandomPairing: async () => {
+    try {
+      const socket = await get().waitForSocket();
+      return new Promise((resolve, reject) => {
+        socket.emit("random:join", (response) => {
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            // Store session for potential reconnection
+            if (response.conversation && typeof window !== "undefined") {
+              sessionStorage.setItem("randomChatSession", response.conversation._id);
+            }
+            resolve(response);
+          }
+        });
       });
-    });
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  endRandomPairing: async (conversationId) => {
+    // Clear session storage
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("randomChatSession");
+    }
+    
+    // Clear reconnection timer
+    const { reconnectTimer } = get();
+    if (reconnectTimer) {
+      clearInterval(reconnectTimer);
+    }
+
+    try {
+      const socket = await get().waitForSocket();
+      return new Promise((resolve, reject) => {
+        socket.emit("random:end", conversationId, (response) => {
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            set({ 
+              activeConversation: null, 
+              messages: [],
+              partnerDisconnected: false,
+              reconnectGracePeriod: 0,
+              reconnectTimer: null,
+            });
+            resolve();
+          }
+        });
+      });
+    } catch (error) {
+      // Even if socket fails, clear local state
+      set({ 
+        activeConversation: null, 
+        messages: [],
+        partnerDisconnected: false,
+        reconnectGracePeriod: 0,
+        reconnectTimer: null,
+      });
+      throw error;
+    }
   },
 
   // Utility Methods

@@ -9,11 +9,13 @@ import {
   CircularProgress,
   InputAdornment,
   Chip,
+  LinearProgress,
 } from "@mui/material";
-import { MdSend, MdShuffle, MdClose, MdRefresh } from "react-icons/md";
+import { MdSend, MdShuffle, MdClose, MdRefresh, MdPersonAdd } from "react-icons/md";
 import { useAuthStore } from "../services/stores/authStore";
 import { useChatStore } from "../services/stores/chatStore";
 import { useChatSocket } from "../services/hooks/useChat";
+import { useAddFriend } from "../services/hooks/useUser";
 import { newColors } from "../Themes/newColors";
 
 /**
@@ -28,19 +30,66 @@ export default function RandomChatPage() {
     joinRandomPairing,
     endRandomPairing,
     sendMessage,
+    checkRandomSession,
+    partnerDisconnected,
+    reconnectGracePeriod,
   } = useChatStore();
 
   // Initialize chat socket
   useChatSocket();
+  
+  // Add friend mutation
+  const addFriendMutation = useAddFriend();
 
-  const [status, setStatus] = useState("idle"); // idle, searching, paired, ended
+  const [status, setStatus] = useState("idle"); // idle, searching, paired, ended, reconnecting
   const [partner, setPartner] = useState(null);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [sending, setSending] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [friendRequestSent, setFriendRequestSent] = useState(false);
 
   const messagesEndRef = useRef(null);
+  
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!isConnected || !socket) {
+        setCheckingSession(false);
+        return;
+      }
+      
+      try {
+        const result = await checkRandomSession();
+        
+        if (result.reconnected && result.conversation) {
+          setConversation(result.conversation);
+          setStatus("paired");
+          
+          // Find the partner
+          const otherParticipant = result.conversation.participants?.find(
+            (p) => p.user?._id !== user?._id
+          );
+          setPartner(otherParticipant?.user || { name: "Stranger" });
+          
+          // Show reconnection message
+          setMessages([{
+            _id: `reconnected-${Date.now()}`,
+            type: "system",
+            content: "Reconnected to chat",
+            createdAt: new Date(),
+          }]);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+    
+    checkSession();
+  }, [isConnected, socket]);
 
   // Listen for random pairing events
   useEffect(() => {
@@ -49,6 +98,7 @@ export default function RandomChatPage() {
     const handlePaired = ({ conversation: conv }) => {
       setConversation(conv);
       setStatus("paired");
+      setFriendRequestSent(false);
       // Find the partner (the other participant)
       const otherParticipant = conv.participants?.find(
         (p) => p.user?._id !== user?._id
@@ -56,15 +106,18 @@ export default function RandomChatPage() {
       setPartner(otherParticipant?.user || { name: "Stranger" });
     };
 
-    const handleEnded = ({ conversationId }) => {
+    const handleEnded = ({ conversationId, reason }) => {
       if (conversation?._id === conversationId) {
         setStatus("ended");
+        const endMessage = reason === "disconnect_timeout" 
+          ? "Partner disconnected (timeout)"
+          : "Your partner has left the chat";
         setMessages((prev) => [
           ...prev,
           {
             _id: `ended-${Date.now()}`,
             type: "system",
-            content: "Your partner has left the chat",
+            content: endMessage,
             createdAt: new Date(),
           },
         ]);
@@ -76,15 +129,47 @@ export default function RandomChatPage() {
         setMessages((prev) => [...prev, message]);
       }
     };
+    
+    const handlePartnerDisconnected = ({ conversationId, gracePeriod }) => {
+      if (conversation?._id === conversationId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            _id: `disconnected-${Date.now()}`,
+            type: "system",
+            content: `Partner disconnected. Waiting ${gracePeriod}s for reconnection...`,
+            createdAt: new Date(),
+          },
+        ]);
+      }
+    };
+    
+    const handlePartnerReconnected = ({ conversationId }) => {
+      if (conversation?._id === conversationId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            _id: `reconnected-${Date.now()}`,
+            type: "system",
+            content: "Partner reconnected!",
+            createdAt: new Date(),
+          },
+        ]);
+      }
+    };
 
     socket.on("random:paired", handlePaired);
     socket.on("random:ended", handleEnded);
     socket.on("message:receive", handleMessage);
+    socket.on("random:partner-disconnected", handlePartnerDisconnected);
+    socket.on("random:partner-reconnected", handlePartnerReconnected);
 
     return () => {
       socket.off("random:paired", handlePaired);
       socket.off("random:ended", handleEnded);
       socket.off("message:receive", handleMessage);
+      socket.off("random:partner-disconnected", handlePartnerDisconnected);
+      socket.off("random:partner-reconnected", handlePartnerReconnected);
     };
   }, [socket, conversation, user]);
 
@@ -145,6 +230,27 @@ export default function RandomChatPage() {
     setMessages([]);
     setPartner(null);
     setConversation(null);
+    setFriendRequestSent(false);
+  };
+  
+  const handleAddFriend = async () => {
+    if (!partner?._id || friendRequestSent) return;
+    
+    try {
+      await addFriendMutation.mutateAsync(partner._id);
+      setFriendRequestSent(true);
+      setMessages((prev) => [
+        ...prev,
+        {
+          _id: `friend-request-${Date.now()}`,
+          type: "system",
+          content: "Friend request sent!",
+          createdAt: new Date(),
+        },
+      ]);
+    } catch (error) {
+      console.error("Error adding friend:", error);
+    }
   };
 
   const handleSend = async () => {
@@ -177,6 +283,28 @@ export default function RandomChatPage() {
       minute: "2-digit",
     });
   };
+
+  // Loading state - checking for existing session
+  if (checkingSession) {
+    return (
+      <Box
+        sx={{
+          height: "calc(100vh - 64px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: newColors.background,
+        }}
+      >
+        <Box sx={{ textAlign: "center" }}>
+          <CircularProgress size={40} sx={{ color: newColors.primary, mb: 2 }} />
+          <Typography sx={{ color: "#888" }}>
+            Checking for existing session...
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   // Idle state - Show find partner button
   if (status === "idle") {
@@ -315,63 +443,114 @@ export default function RandomChatPage() {
       <Box
         sx={{
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          p: 2,
+          flexDirection: "column",
           borderBottom: "1px solid #333",
           bgcolor: newColors.secondary,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Avatar
-            sx={{
-              bgcolor: newColors.primary,
-              width: 40,
-              height: 40,
-            }}
-          >
-            {partner?.name?.[0]?.toUpperCase() || "?"}
-          </Avatar>
-          <Box>
-            <Typography sx={{ color: "#fff", fontWeight: 500 }}>
-              {partner?.name || "Stranger"}
-            </Typography>
-            <Chip
-              label={status === "ended" ? "Disconnected" : "Connected"}
-              size="small"
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            p: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Avatar
+              src={partner?.photo}
               sx={{
-                height: 20,
-                fontSize: 11,
-                bgcolor:
-                  status === "ended"
-                    ? "rgba(255, 107, 107, 0.2)"
-                    : "rgba(81, 207, 102, 0.2)",
-                color: status === "ended" ? "#ff6b6b" : "#51cf66",
-                "& .MuiChip-label": { px: 1 },
+                bgcolor: newColors.primary,
+                width: 40,
+                height: 40,
               }}
-            />
+            >
+              {partner?.name?.[0]?.toUpperCase() || "?"}
+            </Avatar>
+            <Box>
+              <Typography sx={{ color: "#fff", fontWeight: 500 }}>
+                {partner?.name || "Stranger"}
+              </Typography>
+              <Chip
+                label={
+                  status === "ended" 
+                    ? "Disconnected" 
+                    : partnerDisconnected 
+                      ? `Reconnecting (${reconnectGracePeriod}s)` 
+                      : "Connected"
+                }
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: 11,
+                  bgcolor:
+                    status === "ended"
+                      ? "rgba(255, 107, 107, 0.2)"
+                      : partnerDisconnected
+                        ? "rgba(255, 193, 7, 0.2)"
+                        : "rgba(81, 207, 102, 0.2)",
+                  color: 
+                    status === "ended" 
+                      ? "#ff6b6b" 
+                      : partnerDisconnected 
+                        ? "#ffc107" 
+                        : "#51cf66",
+                  "& .MuiChip-label": { px: 1 },
+                }}
+              />
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {/* Add Friend Button */}
+            {partner?._id && status !== "ended" && (
+              <Button
+                startIcon={<MdPersonAdd />}
+                onClick={handleAddFriend}
+                disabled={friendRequestSent || addFriendMutation.isPending}
+                sx={{ 
+                  color: friendRequestSent ? "#51cf66" : newColors.primary,
+                  minWidth: "auto",
+                }}
+              >
+                {friendRequestSent ? "Sent" : "Add Friend"}
+              </Button>
+            )}
+            
+            {status === "ended" ? (
+              <Button
+                startIcon={<MdRefresh />}
+                onClick={handleNewChat}
+                sx={{ color: newColors.primary }}
+              >
+                New Chat
+              </Button>
+            ) : (
+              <Button
+                startIcon={<MdClose />}
+                onClick={handleEndChat}
+                sx={{ color: "#ff6b6b" }}
+              >
+                End Chat
+              </Button>
+            )}
           </Box>
         </Box>
-
-        <Box sx={{ display: "flex", gap: 1 }}>
-          {status === "ended" ? (
-            <Button
-              startIcon={<MdRefresh />}
-              onClick={handleNewChat}
-              sx={{ color: newColors.primary }}
-            >
-              New Chat
-            </Button>
-          ) : (
-            <Button
-              startIcon={<MdClose />}
-              onClick={handleEndChat}
-              sx={{ color: "#ff6b6b" }}
-            >
-              End Chat
-            </Button>
-          )}
-        </Box>
+        
+        {/* Reconnection progress bar */}
+        {partnerDisconnected && (
+          <LinearProgress
+            variant="determinate"
+            value={(reconnectGracePeriod / 30) * 100}
+            sx={{
+              height: 3,
+              bgcolor: "rgba(255, 193, 7, 0.1)",
+              "& .MuiLinearProgress-bar": {
+                bgcolor: "#ffc107",
+              },
+            }}
+          />
+        )}
       </Box>
 
       {/* Messages */}

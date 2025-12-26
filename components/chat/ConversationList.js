@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { MdSearch, MdAdd, MdPeople, MdPerson, MdPublic } from "react-icons/md";
 import { useChatStore } from "../../services/stores/chatStore";
+import { UserAvatar } from "../common/UserAvatar";
 import { newColors } from "../../Themes/newColors";
 import OnlineStatus from "./OnlineStatus";
 
@@ -76,6 +77,16 @@ const ConversationList = ({ onSelectConversation, onCreateGroup }) => {
         (p) => p.user?._id !== conv.createdBy
       );
       return otherParticipant?.user?.photo;
+    }
+    return null;
+  };
+
+  const getOtherParticipant = (conv) => {
+    if (conv.type === "direct") {
+      const otherParticipant = conv.participants?.find(
+        (p) => p.user?._id !== conv.createdBy
+      );
+      return otherParticipant?.user;
     }
     return null;
   };
@@ -220,6 +231,7 @@ const ConversationList = ({ onSelectConversation, onCreateGroup }) => {
         ) : (
           filteredConversations.map((conv) => {
             const otherUserId = getOtherUserId(conv);
+            const otherUser = getOtherParticipant(conv);
             const isOnline = otherUserId ? isUserOnline(otherUserId) : false;
 
             return (
@@ -254,16 +266,24 @@ const ConversationList = ({ onSelectConversation, onCreateGroup }) => {
                       ) : null
                     }
                   >
-                    <Avatar
-                      src={getConversationAvatar(conv)}
-                      sx={{
-                        bgcolor: newColors.primary,
-                        width: 48,
-                        height: 48,
-                      }}
-                    >
-                      {getTypeIcon(conv.type)}
-                    </Avatar>
+                    {conv.type === "direct" && otherUser ? (
+                      <UserAvatar
+                        user={otherUser}
+                        size={48}
+                        showActions={false}
+                      />
+                    ) : (
+                      <Avatar
+                        src={getConversationAvatar(conv)}
+                        sx={{
+                          bgcolor: newColors.primary,
+                          width: 48,
+                          height: 48,
+                        }}
+                      >
+                        {getTypeIcon(conv.type)}
+                      </Avatar>
+                    )}
                   </Badge>
                 </ListItemAvatar>
 

@@ -462,6 +462,85 @@ const getFriendsSuggestionsController = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+/**
+ * Get a single user by ID
+ * GET /api/v1/users/:id
+ */
+const getUserByIdController = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new appError("Invalid user ID", 400));
+  }
+
+  const user = await User.findById(id)
+    .select("_id name username email photo bio createdAt")
+    .lean();
+
+  if (!user) {
+    return next(new appError("User not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+    },
+  });
+});
+
+/**
+ * Search users by username or name
+ * GET /api/v1/users/search?q=query
+ */
+const searchUsersController = catchAsync(async (req, res, next) => {
+  const { user } = req;
+  const query = req.query.q;
+  const limit = parseInt(req.query.limit, 10) || 10;
+
+  if (!query || query.trim().length < 2) {
+    return res.status(200).json({
+      status: "success",
+      results: 0,
+      data: {
+        users: [],
+      },
+    });
+  }
+
+  // Get friend IDs to mark users as friends in results
+  const friendIds = user.friends?.map((f) => f.friendId.toString()) || [];
+
+  // Search by username or name (case insensitive)
+  const searchRegex = new RegExp(query.trim(), "i");
+  
+  const users = await User.find({
+    _id: { $ne: user._id }, // Exclude current user
+    $or: [
+      { username: searchRegex },
+      { name: searchRegex },
+    ],
+  })
+    .select("_id name username photo")
+    .limit(limit)
+    .lean();
+
+  // Add isFriend flag to each user
+  const usersWithFriendStatus = users.map((u) => ({
+    ...u,
+    isFriend: friendIds.includes(u._id.toString()),
+  }));
+
+  res.status(200).json({
+    status: "success",
+    results: usersWithFriendStatus.length,
+    data: {
+      users: usersWithFriendStatus,
+    },
+  });
+});
+
 module.exports = {
   addUser,
   deleteUser,
@@ -475,4 +554,6 @@ module.exports = {
   removeFriendController,
   getFriendsController,
   getFriendsSuggestionsController,
+  searchUsersController,
+  getUserByIdController,
 };

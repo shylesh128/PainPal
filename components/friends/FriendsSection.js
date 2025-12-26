@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useFriends } from "../../services/hooks/useUser";
+import { useFriends, useRemoveFriend } from "../../services/hooks/useUser";
 import {
   Box,
   TextField,
@@ -9,15 +9,46 @@ import {
   CircularProgress,
   Avatar,
   Grid,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
 } from "@mui/material";
+import { MdDelete, MdMessage } from "react-icons/md";
+import { useRouter } from "next/router";
 import { getColorForUsername } from "../../utils/alphaToColors";
 
 const FriendsSection = () => {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [allFriends, setAllFriends] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, friend: null });
   
-  const { data: friendsData, isLoading: loading } = useFriends(page, 10);
+  const { data: friendsData, isLoading: loading, refetch } = useFriends(page, 10);
+  const removeFriendMutation = useRemoveFriend();
+  
+  const handleRemoveFriend = async () => {
+    if (!confirmDialog.friend) return;
+    
+    try {
+      await removeFriendMutation.mutateAsync(confirmDialog.friend._id);
+      // Remove from local state
+      setAllFriends((prev) => prev.filter((f) => f._id !== confirmDialog.friend._id));
+      setConfirmDialog({ open: false, friend: null });
+      refetch();
+    } catch (error) {
+      console.error("Error removing friend:", error);
+    }
+  };
+  
+  const handleMessageFriend = (friendId) => {
+    router.push(`/chats/${friendId}`);
+  };
 
   useEffect(() => {
     if (friendsData?.data?.friends) {
@@ -100,7 +131,7 @@ const FriendsSection = () => {
                     sizes="40px"
                     sx={{ marginRight: "10px" }}
                   />
-                  <CardContent sx={{ padding: 0 }}>
+                  <CardContent sx={{ padding: 0, flex: 1 }}>
                     <Typography
                       variant="body1"
                       fontWeight="bold"
@@ -112,6 +143,26 @@ const FriendsSection = () => {
                       {friend.email}
                     </Typography>
                   </CardContent>
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    <Tooltip title="Message">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleMessageFriend(friend._id)}
+                        sx={{ color: "#a785eb" }}
+                      >
+                        <MdMessage />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Unfriend">
+                      <IconButton
+                        size="small"
+                        onClick={() => setConfirmDialog({ open: true, friend })}
+                        sx={{ color: "#ff6b6b" }}
+                      >
+                        <MdDelete />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </Card>
               ))
             )}
@@ -136,6 +187,35 @@ const FriendsSection = () => {
           </div>
         </Grid>
       </Grid>
+      
+      {/* Confirm Remove Friend Dialog */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, friend: null })}
+      >
+        <DialogTitle>Remove Friend</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to remove <strong>{confirmDialog.friend?.name}</strong> from your friends list?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setConfirmDialog({ open: false, friend: null })}
+            disabled={removeFriendMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleRemoveFriend} 
+            color="error" 
+            variant="contained"
+            disabled={removeFriendMutation.isPending}
+          >
+            {removeFriendMutation.isPending ? "Removing..." : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

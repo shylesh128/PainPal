@@ -14,7 +14,12 @@ import { useAuthStore } from "../services/stores/authStore";
 import { useRouter } from "next/router";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
-import { MdVisibility, MdVisibilityOff, MdEmail, MdRefresh } from "react-icons/md";
+import {
+  MdVisibility,
+  MdVisibilityOff,
+  MdEmail,
+  MdRefresh,
+} from "react-icons/md";
 import Link from "next/link";
 import api from "../services/api/axios";
 import { styles } from "../styles/login-style";
@@ -46,7 +51,9 @@ const Login = () => {
           setError("GitHub authentication failed. Please try again.");
           break;
         case "github_email_required":
-          setError("GitHub email is required. Please make your email public or use another method.");
+          setError(
+            "GitHub email is required. Please make your email public or use another method."
+          );
           break;
         default:
           setError("Authentication failed. Please try again.");
@@ -87,12 +94,12 @@ const Login = () => {
 
     try {
       const result = await login(username, password);
-      
+
       if (result?.success) {
         router.push("/");
       } else if (result?.error) {
         setError(result.message);
-        
+
         // Handle email verification required
         if (result.requiresVerification) {
           setVerificationRequired(true);
@@ -105,7 +112,7 @@ const Login = () => {
             cooldown: result.cooldown,
             remainingAttempts: result.remainingAttempts,
           });
-          
+
           if (result.remainingTime) {
             setCooldownTimer(result.remainingTime);
           }
@@ -158,12 +165,6 @@ const Login = () => {
             Pain
             <span style={styles.highlightedSpan}>Pal</span>
           </Typography>
-
-          <TypeAnimation
-            sequence={["Welcome back", 1500, "Write your pain", 1500]}
-            speed={40}
-            style={styles.typeAnimation}
-          />
         </Box>
 
         {/* Lockout Banner */}
@@ -182,7 +183,8 @@ const Login = () => {
         {cooldownTimer > 0 && (
           <Box sx={styles.lockoutBanner}>
             <Typography sx={styles.cooldownText}>
-              Too many attempts. Try again in {formatCooldownTime(cooldownTimer)}
+              Too many attempts. Try again in{" "}
+              {formatCooldownTime(cooldownTimer)}
             </Typography>
           </Box>
         )}
@@ -199,7 +201,14 @@ const Login = () => {
               textAlign: "center",
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                mb: 1,
+              }}
+            >
               <MdEmail size={24} color="#a785eb" style={{ marginRight: 8 }} />
               <Typography sx={{ color: "#a785eb", fontWeight: "bold" }}>
                 Email Verification Required
@@ -208,7 +217,7 @@ const Login = () => {
             <Typography sx={{ color: "#aaa", fontSize: "14px", mb: 2 }}>
               Please verify your email before logging in.
             </Typography>
-            
+
             {resendMessage && (
               <Typography
                 sx={{
@@ -220,18 +229,27 @@ const Login = () => {
                 {resendMessage}
               </Typography>
             )}
-            
+
             <Button
               variant="outlined"
               size="small"
               onClick={handleResendVerification}
               disabled={resending}
-              startIcon={resending ? <CircularProgress size={14} /> : <MdRefresh size={16} />}
+              startIcon={
+                resending ? (
+                  <CircularProgress size={14} />
+                ) : (
+                  <MdRefresh size={16} />
+                )
+              }
               sx={{
                 borderColor: "#a785eb",
                 color: "#a785eb",
                 fontSize: "13px",
-                "&:hover": { borderColor: "#b899f0", bgcolor: "rgba(167, 133, 235, 0.1)" },
+                "&:hover": {
+                  borderColor: "#b899f0",
+                  bgcolor: "rgba(167, 133, 235, 0.1)",
+                },
               }}
             >
               {resending ? "Sending..." : "Resend Verification Email"}
@@ -293,14 +311,6 @@ const Login = () => {
         {error && !verificationRequired && (
           <Typography sx={styles.error}>{error}</Typography>
         )}
-        
-        {lockoutInfo?.remainingAttempts !== undefined && 
-         !lockoutInfo.locked && 
-         !lockoutInfo.cooldown && (
-          <Typography sx={styles.warning}>
-            {lockoutInfo.remainingAttempts} attempt(s) remaining
-          </Typography>
-        )}
 
         <Box sx={styles.buttonGroup}>
           <Button
@@ -349,7 +359,9 @@ const Login = () => {
           <Typography sx={{ color: "#888" }}>
             Don't have an account?{" "}
             <Link href="/signup" style={{ textDecoration: "none" }}>
-              <span style={{ color: "#a785eb", cursor: "pointer" }}>Sign Up</span>
+              <span style={{ color: "#a785eb", cursor: "pointer" }}>
+                Sign Up
+              </span>
             </Link>
           </Typography>
         </Box>

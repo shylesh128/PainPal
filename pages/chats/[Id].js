@@ -22,6 +22,7 @@ export default function DirectChatPage() {
     setActiveConversation,
     joinConversation,
     fetchMessages,
+    isConnected,
   } = useChatStore();
 
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,7 @@ export default function DirectChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Create or get direct conversation with the user
+  // Waits for socket to be connected before joining
   useEffect(() => {
     const initConversation = async () => {
       if (!Id || !user) return;
@@ -46,11 +48,17 @@ export default function DirectChatPage() {
 
         const conversation = response.data.data.conversation;
         setActiveConversation(conversation);
+        // joinConversation now uses waitForSocket internally
         await joinConversation(conversation._id);
         await fetchMessages(conversation._id);
       } catch (err) {
-        console.error("Error initializing conversation:", err);
-        setError(err.response?.data?.message || "Failed to load conversation");
+        // Handle socket timeout gracefully
+        if (err.message === "Socket connection timeout") {
+          setError("Connection timeout. Please refresh the page.");
+        } else {
+          console.error("Error initializing conversation:", err);
+          setError(err.response?.data?.message || "Failed to load conversation");
+        }
       } finally {
         setLoading(false);
       }

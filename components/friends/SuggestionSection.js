@@ -5,12 +5,12 @@ import {
   Card,
   CardContent,
   Typography,
-  Avatar,
   IconButton,
 } from "@mui/material";
 import { getColorForUsername } from "../../utils/alphaToColors";
 import { MdClose } from "react-icons/md";
 import { Swiper, SwiperSlide } from "swiper/react";
+import { UserAvatar } from "../common/UserAvatar";
 import "swiper/css";
 import { LoadingButton } from "@mui/lab";
 import { useRouter } from "next/router";
@@ -115,10 +115,13 @@ const SuggestionSection = () => {
                   <MdClose />
                 </IconButton>
               </Box>
-              <Avatar
-                src={friend.photo || "/default-avatar.png"}
-                sx={{ width: 60, height: 60, marginBottom: "10px" }}
-              />
+              <Box sx={{ mb: "10px" }}>
+                <UserAvatar
+                  user={friend}
+                  size={60}
+                  showActions={true}
+                />
+              </Box>
               <CardContent sx={{ padding: 0, textAlign: "center" }}>
                 <Typography
                   variant="body1"

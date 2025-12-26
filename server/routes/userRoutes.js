@@ -14,6 +14,8 @@ const {
   removeFriendController,
   getFriendsController,
   getFriendsSuggestionsController,
+  searchUsersController,
+  getUserByIdController,
 } = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authmiddleware");
 const { fileMiddleware } = require("../middlewares/filemiddleware");
@@ -30,6 +32,7 @@ router.delete("/", deleteAllUsers);
 
 router.use(authMiddleware);
 router.get("/me", userDetails);
+router.get("/search", searchUsersController);
 
 router.post("/me/photo", fileMiddleware, updateProfilePicController);
 
@@ -38,5 +41,8 @@ router.delete("/me/friends/remove/:friendId", removeFriendController);
 router.get("/me/friends", getFriendsController);
 
 router.get("/me/friends/suggestions", getFriendsSuggestionsController);
+
+// Get user by ID (must be after /me routes to avoid conflict)
+router.get("/:id", getUserByIdController);
 
 module.exports = router;

@@ -113,7 +113,7 @@ const chatService = {
   /**
    * End random pairing
    */
-  async endRandomPairing(conversationId, userId) {
+  async endRandomPairing(conversationId, userId, reason = "manual") {
     const conversation = await Conversation.findById(conversationId);
 
     if (!conversation || conversation.type !== "random") {
@@ -124,15 +124,56 @@ const chatService = {
     conversation.isActive = false;
     await conversation.save();
 
-    // Create system message
+    // Create system message based on reason
+    const message = reason === "disconnect_timeout" 
+      ? "Partner disconnected" 
+      : "Chat ended";
+
     await ChatMessage.createMessage(
       conversation._id,
       userId,
-      "Chat ended",
+      message,
       { messageType: "system" }
     );
 
     return conversation;
+  },
+
+  /**
+   * Get user's active random conversation (if any)
+   */
+  async getActiveRandomConversation(userId) {
+    const conversation = await Conversation.findOne({
+      type: "random",
+      pairStatus: "paired",
+      isActive: true,
+      "participants.user": userId,
+    }).populate("participants.user", "name photo");
+
+    return conversation;
+  },
+
+  /**
+   * Check if random conversation can be resumed
+   */
+  async canResumeRandomConversation(conversationId, userId) {
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation || conversation.type !== "random") {
+      return false;
+    }
+
+    // Check if user is a participant
+    const isParticipant = conversation.participants.some(
+      (p) => p.user.toString() === userId.toString()
+    );
+
+    if (!isParticipant) {
+      return false;
+    }
+
+    // Can resume if still paired and active
+    return conversation.pairStatus === "paired" && conversation.isActive;
   },
 
   /**

@@ -5,13 +5,13 @@ import {
   Card,
   CardContent,
   Typography,
-  Avatar,
   Button,
   IconButton,
 } from "@mui/material";
 import { getColorForUsername } from "../../utils/alphaToColors";
 import { MdClose } from "react-icons/md";
 import { Swiper, SwiperSlide } from "swiper/react";
+import { UserAvatar } from "../common/UserAvatar";
 import "swiper/css";
 
 const FriendsSlider = () => {
@@ -93,9 +93,10 @@ const FriendsSlider = () => {
                       <MdClose color="#f3f3f3" />
                     </IconButton>
                   </Box>
-                  <Avatar
-                    src={friend.photo || "/default-avatar.png"}
-                    sx={{ width: 60, height: 60, marginBottom: "10px" }}
+                  <UserAvatar
+                    user={friend}
+                    size={60}
+                    showActions={true}
                   />
                   <CardContent sx={{ padding: 0, textAlign: "center" }}>
                     <Typography

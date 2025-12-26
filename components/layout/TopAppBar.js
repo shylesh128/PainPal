@@ -10,7 +10,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { MdMenu, MdChat } from "react-icons/md";
+import { MdMenu, MdChat, MdSearch } from "react-icons/md";
 import AccountMenu from "./AccountMenu";
 import { useAuthStore } from "../../services/stores/authStore";
 import { useChatStore } from "../../services/stores/chatStore";
@@ -32,8 +32,9 @@ const TopAppBar = ({ onMenuClick, sidebarOpen }) => {
     if (path === "/chat") return "Random Chat";
     if (path === "/list") return "Friends";
     if (path === "/profile") return "Profile";
+    if (path === "/search") return "Search Users";
     if (path.startsWith("/chats/")) return "Chat";
-    if (path.startsWith("/friends/")) return "Friend Profile";
+    if (path.startsWith("/friends/")) return "User Profile";
     
     return "Painit";
   };
@@ -73,6 +74,16 @@ const TopAppBar = ({ onMenuClick, sidebarOpen }) => {
 
         {/* Action Icons */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {/* Search Page Link */}
+          <Tooltip title="Search Users">
+            <IconButton
+              onClick={() => router.push("/search")}
+              sx={{ color: "#888" }}
+            >
+              <MdSearch size={22} />
+            </IconButton>
+          </Tooltip>
+
           {/* Messages */}
           <Tooltip title="Messages">
             <IconButton

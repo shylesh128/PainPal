@@ -55,12 +55,17 @@ const ChatWindow = ({ conversation, onBack, onOpenSettings, onOpenSearch }) => {
   // Join conversation on mount
   useEffect(() => {
     if (conversation?._id) {
-      joinConversation(conversation._id).then(() => {
-        fetchMessages(conversation._id).then((result) => {
-          setHasMore(result?.hasMore || false);
-          scrollToBottom();
+      joinConversation(conversation._id)
+        .then(() => {
+          fetchMessages(conversation._id).then((result) => {
+            setHasMore(result?.hasMore || false);
+            scrollToBottom();
+          });
+        })
+        .catch((err) => {
+          // Handle socket errors gracefully - socket methods now wait for connection
+          console.error("Error joining conversation:", err);
         });
-      });
 
       return () => {
         leaveConversation(conversation._id);

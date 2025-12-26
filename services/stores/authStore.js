@@ -15,6 +15,11 @@ export const useAuthStore = create((set, get) => ({
   setUser: (user) => set({ user, isAuthenticated: !!user }),
   setToken: (token) => set({ token }),
   setLoading: (loading) => set({ loading }),
+  
+  // Partially update user object (for profile updates like photo, bio, name)
+  updateUser: (updates) => set((state) => ({ 
+    user: state.user ? { ...state.user, ...updates } : null 
+  })),
 
   // Initialize auth state from cookies - called once on app mount
   initialize: async () => {
@@ -70,63 +75,55 @@ export const useAuthStore = create((set, get) => ({
 
   // Signup
   signup: async (username, email, password, name) => {
-    try {
-      const response = await api.post("/auth/signup", {
-        username,
-        email,
-        password,
-        name,
+    return api.post("/auth/signup", { username, email, password, name })
+      .then((response) => {
+        if (response.status === 201) {
+          const { user, token, refreshToken } = response.data;
+          
+          Cookies.set("pain", token, { expires: 1/48, path: "/" });
+          Cookies.set("refreshToken", refreshToken, { expires: 7, path: "/" });
+          
+          set({ user, token, isAuthenticated: true });
+          return { success: true };
+        }
+        return { error: true, message: "Unexpected response" };
+      })
+      .catch((error) => {
+        return {
+          error: true,
+          message: error.response?.data?.message || "Signup failed",
+        };
       });
-
-      if (response.status === 201) {
-        const { user, token, refreshToken } = response.data;
-        
-        Cookies.set("pain", token, { expires: 1/48, path: "/" });
-        Cookies.set("refreshToken", refreshToken, { expires: 7, path: "/" });
-        
-        set({ user, token, isAuthenticated: true });
-        return { success: true };
-      }
-    } catch (error) {
-      console.error("Signup failed:", error);
-      return {
-        error: true,
-        message: error.response?.data?.message || "Signup failed",
-      };
-    }
   },
 
   // Login
   login: async (username, password) => {
-    try {
-      const response = await api.post("/auth/login", {
-        username,
-        password,
+    return api.post("/auth/login", { username, password })
+      .then((response) => {
+        if (response.status === 200) {
+          const { user, token, refreshToken } = response.data;
+          
+          Cookies.set("pain", token, { expires: 1/48, path: "/" });
+          Cookies.set("refreshToken", refreshToken, { expires: 7, path: "/" });
+          
+          set({ user, token, isAuthenticated: true });
+          return { success: true };
+        }
+        return { error: true, message: "Unexpected response" };
+      })
+      .catch((error) => {
+        const data = error.response?.data || {};
+        return {
+          error: true,
+          message: data.message || "Login failed",
+          locked: data.locked,
+          cooldown: data.cooldown,
+          remainingTime: data.remainingTime,
+          remainingAttempts: data.remainingAttempts,
+          requiresVerification: data.requiresVerification,
+          email: data.email,
+        };
       });
-
-      if (response.status === 200) {
-        const { user, token, refreshToken } = response.data;
-        
-        Cookies.set("pain", token, { expires: 1/48, path: "/" });
-        Cookies.set("refreshToken", refreshToken, { expires: 7, path: "/" });
-        
-        set({ user, token, isAuthenticated: true });
-        return { success: true };
-      }
-    } catch (error) {
-      console.error("Login failed:", error);
-      const data = error.response?.data || {};
-      return {
-        error: true,
-        message: data.message || "Login failed",
-        locked: data.locked,
-        cooldown: data.cooldown,
-        remainingTime: data.remainingTime,
-        remainingAttempts: data.remainingAttempts,
-        requiresVerification: data.requiresVerification,
-        email: data.email,
-      };
-    }
   },
 
   // Logout
@@ -158,30 +155,22 @@ export const useAuthStore = create((set, get) => ({
 
   // Forgot password
   forgotPassword: async (email) => {
-    try {
-      const response = await api.post("/auth/forgot-password", { email });
-      return { success: true, message: response.data.message };
-    } catch (error) {
-      console.error("Forgot password failed:", error);
-      return {
+    return api.post("/auth/forgot-password", { email })
+      .then((response) => ({ success: true, message: response.data.message }))
+      .catch((error) => ({
         error: true,
         message: error.response?.data?.message || "Failed to send reset email",
-      };
-    }
+      }));
   },
 
   // Reset password
   resetPassword: async (token, password) => {
-    try {
-      const response = await api.post("/auth/reset-password", { token, password });
-      return { success: true, message: response.data.message };
-    } catch (error) {
-      console.error("Reset password failed:", error);
-      return {
+    return api.post("/auth/reset-password", { token, password })
+      .then((response) => ({ success: true, message: response.data.message }))
+      .catch((error) => ({
         error: true,
         message: error.response?.data?.message || "Failed to reset password",
-      };
-    }
+      }));
   },
 
   // Refresh tokens
