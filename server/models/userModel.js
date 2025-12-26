@@ -75,6 +75,23 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  // Email verification fields
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailVerificationToken: {
+    type: String,
+    default: null,
+  },
+  emailVerificationExpires: {
+    type: Date,
+    default: null,
+  },
+  verificationEmailSentAt: {
+    type: Date,
+    default: null,
+  },
 });
 
 // Hash password before saving
@@ -109,6 +126,35 @@ userSchema.methods.createPasswordResetToken = function () {
 userSchema.methods.clearPasswordResetToken = function () {
   this.passwordResetToken = null;
   this.passwordResetExpires = null;
+};
+
+// Generate email verification token
+userSchema.methods.createEmailVerificationToken = function () {
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+
+  this.emailVerificationToken = crypto
+    .createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+
+  // Token expires in 24 hours
+  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+  this.verificationEmailSentAt = Date.now();
+
+  return verificationToken;
+};
+
+// Clear email verification token
+userSchema.methods.clearEmailVerificationToken = function () {
+  this.emailVerificationToken = null;
+  this.emailVerificationExpires = null;
+};
+
+// Check if can resend verification email (rate limit: 1 per minute)
+userSchema.methods.canResendVerificationEmail = function () {
+  if (!this.verificationEmailSentAt) return true;
+  const oneMinuteAgo = Date.now() - 60 * 1000;
+  return this.verificationEmailSentAt < oneMinuteAgo;
 };
 
 const User = mongoose.model("User", userSchema);

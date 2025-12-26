@@ -41,6 +41,7 @@ const logDeviceAccess = async (userId, deviceInfo) => {
 
 /**
  * Signup - Register new user with username, email, password
+ * Requires email verification before account is active
  */
 const signup = catchAsync(async (req, res, next) => {
   const { username, email, password, name } = req.body;
@@ -60,51 +61,66 @@ const signup = catchAsync(async (req, res, next) => {
   });
 
   if (existingUser) {
+    // If user exists but not verified, allow resending verification
+    if (!existingUser.isVerified && existingUser.email === email.toLowerCase()) {
+      // Generate new verification token
+      const verificationToken = existingUser.createEmailVerificationToken();
+      await existingUser.save({ validateBeforeSave: false });
+
+      // Send verification email
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      await emailService.sendVerificationEmail(
+        existingUser.email,
+        existingUser.username,
+        verificationToken,
+        baseUrl
+      );
+
+      return res.status(200).json({
+        status: "success",
+        message: "Verification email resent. Please check your inbox.",
+        requiresVerification: true,
+      });
+    }
+
     if (existingUser.email === email.toLowerCase()) {
       return next(new AppError("Email already registered", 400));
     }
     return next(new AppError("Username already taken", 400));
   }
 
-  // Create new user
+  // Create new user (not verified yet)
   const user = await User.create({
     name: name || username,
     username: username.toLowerCase(),
     email: email.toLowerCase(),
     password,
     isOAuth: false,
+    isVerified: false,
   });
 
-  // Generate tokens
-  const deviceInfo = getDeviceInfo(req);
-  const { accessToken, refreshToken } = await tokenService.generateTokenPair(
-    user._id,
-    deviceInfo
+  // Generate verification token
+  const verificationToken = user.createEmailVerificationToken();
+  await user.save({ validateBeforeSave: false });
+
+  // Send verification email
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const emailResult = await emailService.sendVerificationEmail(
+    user.email,
+    user.username,
+    verificationToken,
+    baseUrl
   );
 
-  // Log device
-  await logDeviceAccess(user._id, deviceInfo);
-
-  // Send welcome email (non-blocking)
-  emailService.sendWelcomeEmail(user.email, user.username).catch(console.error);
-
-  // Set refresh token as httpOnly cookie
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
-
-  // Remove password from response
-  user.password = undefined;
+  if (!emailResult.success) {
+    console.error("Failed to send verification email:", emailResult.error);
+  }
 
   res.status(201).json({
     status: "success",
-    message: "User registered successfully",
-    token: accessToken,
-    refreshToken,
-    user,
+    message: "Registration successful! Please check your email to verify your account.",
+    requiresVerification: true,
+    email: user.email,
   });
 });
 
@@ -164,6 +180,16 @@ const login = catchAsync(async (req, res, next) => {
       locked: failResult.locked,
       cooldown: failResult.cooldown,
       remainingAttempts: failResult.remainingAttempts,
+    });
+  }
+
+  // Check if email is verified (skip for OAuth users)
+  if (!user.isOAuth && !user.isVerified) {
+    return res.status(403).json({
+      status: "fail",
+      message: "Please verify your email before logging in",
+      requiresVerification: true,
+      email: user.email,
     });
   }
 
@@ -440,6 +466,135 @@ const unlockAccount = catchAsync(async (req, res, next) => {
   });
 });
 
+/**
+ * Verify Email - Verify user's email address with token
+ */
+const verifyEmail = catchAsync(async (req, res, next) => {
+  const { token, email } = req.body;
+
+  if (!token || !email) {
+    return next(new AppError("Verification token and email are required", 400));
+  }
+
+  // Hash the token to compare with stored hash
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  // Find user with matching token and email
+  const user = await User.findOne({
+    email: email.toLowerCase(),
+    emailVerificationToken: hashedToken,
+    emailVerificationExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return next(new AppError("Invalid or expired verification token", 400));
+  }
+
+  // Verify the user
+  user.isVerified = true;
+  user.clearEmailVerificationToken();
+  await user.save({ validateBeforeSave: false });
+
+  // Send welcome email
+  emailService.sendWelcomeEmail(user.email, user.username).catch(console.error);
+
+  // Generate tokens for auto-login
+  const deviceInfo = getDeviceInfo(req);
+  const { accessToken, refreshToken } = await tokenService.generateTokenPair(
+    user._id,
+    deviceInfo
+  );
+
+  // Log device
+  await logDeviceAccess(user._id, deviceInfo);
+
+  // Set refresh token as httpOnly cookie
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  });
+
+  // Set access token as httpOnly cookie
+  res.cookie("pain", accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 30 * 60 * 1000, // 30 mins
+  });
+
+  user.password = undefined;
+
+  res.status(200).json({
+    status: "success",
+    message: "Email verified successfully! You are now logged in.",
+    token: accessToken,
+    user,
+  });
+});
+
+/**
+ * Resend Verification Email - Send a new verification email
+ */
+const resendVerification = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return next(new AppError("Email is required", 400));
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    // Don't reveal if email exists
+    return res.status(200).json({
+      status: "success",
+      message: "If an account exists with this email, a verification link will be sent.",
+    });
+  }
+
+  if (user.isVerified) {
+    return next(new AppError("This email is already verified", 400));
+  }
+
+  if (user.isOAuth) {
+    return next(new AppError("OAuth accounts don't require email verification", 400));
+  }
+
+  // Check rate limit
+  if (!user.canResendVerificationEmail()) {
+    return next(
+      new AppError("Please wait at least 1 minute before requesting another email", 429)
+    );
+  }
+
+  // Generate new verification token
+  const verificationToken = user.createEmailVerificationToken();
+  await user.save({ validateBeforeSave: false });
+
+  // Send verification email
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const emailResult = await emailService.sendVerificationEmail(
+    user.email,
+    user.username,
+    verificationToken,
+    baseUrl
+  );
+
+  if (!emailResult.success) {
+    return next(new AppError("Failed to send verification email. Please try again.", 500));
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: "Verification email sent. Please check your inbox.",
+  });
+});
+
 module.exports = {
   signup,
   login,
@@ -450,4 +605,6 @@ module.exports = {
   logoutAll,
   userByToken,
   unlockAccount,
+  verifyEmail,
+  resendVerification,
 };

@@ -149,6 +149,54 @@ const emailService = {
   },
 
   /**
+   * Send email verification email
+   * @param {string} email - User's email
+   * @param {string} username - User's username
+   * @param {string} verificationToken - Email verification token
+   * @param {string} baseUrl - Base URL for verification link
+   */
+  async sendVerificationEmail(email, username, verificationToken, baseUrl) {
+    const verifyUrl = `${baseUrl}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #1b1b1b; color: #f1f1f1;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #fff; margin: 0;">Pain<span style="background-color: #a785eb; color: #292929; padding: 2px 6px; border-radius: 8px; margin-left: 4px;">Pal</span></h1>
+        </div>
+        
+        <h2 style="color: #a785eb;">Verify Your Email Address</h2>
+        
+        <p>Hello <strong>${username}</strong>,</p>
+        
+        <p>Thank you for signing up for PainPal! Please verify your email address to complete your registration.</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verifyUrl}" style="background-color: #a785eb; color: #292929; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">
+            Verify Email Address
+          </a>
+        </div>
+        
+        <p style="color: #888; font-size: 14px;">This link will expire in 24 hours.</p>
+        
+        <p style="color: #888; font-size: 14px;">If you didn't create an account with PainPal, you can safely ignore this email.</p>
+        
+        <hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
+        
+        <p style="color: #666; font-size: 12px; text-align: center;">
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          <a href="${verifyUrl}" style="color: #a785eb; word-break: break-all;">${verifyUrl}</a>
+        </p>
+      </div>
+    `;
+
+    return await this.sendEmail({
+      to: email,
+      subject: "Verify Your Email - PainPal",
+      html,
+    });
+  },
+
+  /**
    * Send welcome email after signup
    * @param {string} email - User's email
    * @param {string} username - User's username

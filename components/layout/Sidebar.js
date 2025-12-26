@@ -56,13 +56,13 @@ const Sidebar = ({ open, onToggle }) => {
       badge: totalUnread,
     },
     {
-      label: "Global Chat",
+      label: "Global Room",
       icon: MdPublic,
       path: "/global",
       active: router.pathname === "/global",
     },
     {
-      label: "Random Chat",
+      label: "Random 1:1",
       icon: MdShuffle,
       path: "/chat",
       active: router.pathname === "/chat",

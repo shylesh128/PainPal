@@ -11,6 +11,8 @@ const {
   logoutAll,
   userByToken,
   unlockAccount,
+  verifyEmail,
+  resendVerification,
 } = require("../controllers/loginController");
 
 const {
@@ -33,6 +35,10 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/logout", logout);
 router.post("/logout-all", authMiddleware, logoutAll);
+
+// Email verification routes
+router.post("/verify-email", verifyEmail);
+router.post("/resend-verification", resendVerification);
 
 // Token verification
 router.post("/isLoggedIn", userByToken);

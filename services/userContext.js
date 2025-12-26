@@ -77,7 +77,7 @@ export const UserProvider = ({ children }) => {
     if (!currentToken) {
       setLoading(false);
       // Only redirect if not on public pages
-      const publicPages = ["/login", "/signup", "/forgot-password", "/reset-password"];
+      const publicPages = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"];
       if (!publicPages.includes(router.pathname)) {
         router.push("/login");
       }
@@ -179,6 +179,8 @@ export const UserProvider = ({ children }) => {
         cooldown: data.cooldown,
         remainingTime: data.remainingTime,
         remainingAttempts: data.remainingAttempts,
+        requiresVerification: data.requiresVerification,
+        email: data.email,
       };
     }
   };

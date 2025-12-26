@@ -7,14 +7,16 @@ import {
   IconButton,
   InputAdornment,
   CircularProgress,
+  Paper,
 } from "@mui/material";
 import { useState, useContext } from "react";
 import { UserContext } from "../services/userContext";
 import { useRouter } from "next/router";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
-import { MdVisibility, MdVisibilityOff } from "react-icons/md";
+import { MdVisibility, MdVisibilityOff, MdEmail, MdRefresh } from "react-icons/md";
 import Link from "next/link";
+import axios from "axios";
 import {
   styles,
   calculatePasswordStrength,
@@ -22,7 +24,7 @@ import {
 } from "../styles/login-style";
 
 const Signup = () => {
-  const { signup, handleGoogleLogin, handleGithubLogin } = useContext(UserContext);
+  const { handleGoogleLogin, handleGithubLogin } = useContext(UserContext);
   const [formData, setFormData] = useState({
     name: "",
     username: "",
@@ -34,6 +36,10 @@ const Signup = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const router = useRouter();
 
   const passwordStrength = calculatePasswordStrength(formData.password);
@@ -91,20 +97,39 @@ const Signup = () => {
     setError("");
 
     try {
-      const result = await signup(
-        formData.username,
-        formData.email,
-        formData.password,
-        formData.name
-      );
+      const response = await axios.post("/api/v1/auth/signup", {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+      });
 
-      if (result?.error) {
-        setError(result.message);
+      if (response.data.requiresVerification) {
+        setVerificationSent(true);
+        setRegisteredEmail(response.data.email || formData.email);
       }
     } catch (err) {
-      setError("Signup failed. Please try again.");
+      setError(err.response?.data?.message || "Signup failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResending(true);
+    setResendMessage("");
+
+    try {
+      await axios.post("/api/v1/auth/resend-verification", {
+        email: registeredEmail,
+      });
+      setResendMessage("Verification email sent! Please check your inbox.");
+    } catch (err) {
+      setResendMessage(
+        err.response?.data?.message || "Failed to send email. Please try again."
+      );
+    } finally {
+      setResending(false);
     }
   };
 
@@ -113,6 +138,99 @@ const Signup = () => {
       handleSignup();
     }
   };
+
+  // Show verification sent screen
+  if (verificationSent) {
+    return (
+      <div style={styles.container}>
+        <Paper
+          elevation={0}
+          sx={{
+            ...styles.box,
+            textAlign: "center",
+            py: 5,
+          }}
+        >
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: "50%",
+              bgcolor: "rgba(167, 133, 235, 0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 24px",
+            }}
+          >
+            <MdEmail size={40} color="#a785eb" />
+          </Box>
+
+          <Typography variant="h5" sx={{ color: "#fff", mb: 2, fontWeight: 600 }}>
+            Check Your Email
+          </Typography>
+
+          <Typography sx={{ color: "#aaa", mb: 1 }}>
+            We've sent a verification link to:
+          </Typography>
+
+          <Typography
+            sx={{
+              color: "#a785eb",
+              fontWeight: 500,
+              mb: 3,
+              fontSize: 18,
+            }}
+          >
+            {registeredEmail}
+          </Typography>
+
+          <Typography sx={{ color: "#888", mb: 4, fontSize: 14 }}>
+            Click the link in the email to verify your account and complete
+            registration. The link expires in 24 hours.
+          </Typography>
+
+          {resendMessage && (
+            <Typography
+              sx={{
+                color: resendMessage.includes("sent") ? "#51cf66" : "#ff6b6b",
+                mb: 2,
+                fontSize: 14,
+              }}
+            >
+              {resendMessage}
+            </Typography>
+          )}
+
+          <Button
+            variant="outlined"
+            onClick={handleResendVerification}
+            disabled={resending}
+            startIcon={resending ? <CircularProgress size={16} /> : <MdRefresh />}
+            sx={{
+              borderColor: "#444",
+              color: "#aaa",
+              mb: 2,
+              "&:hover": { borderColor: "#666" },
+            }}
+          >
+            {resending ? "Sending..." : "Resend Verification Email"}
+          </Button>
+
+          <Box sx={{ mt: 3 }}>
+            <Typography sx={{ color: "#666", fontSize: 14 }}>
+              Already verified?{" "}
+              <Link href="/login" style={{ textDecoration: "none" }}>
+                <span style={{ color: "#a785eb", cursor: "pointer" }}>
+                  Login here
+                </span>
+              </Link>
+            </Typography>
+          </Box>
+        </Paper>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -308,4 +426,3 @@ const Signup = () => {
 };
 
 export default Signup;
-

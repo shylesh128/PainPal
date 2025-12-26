@@ -14,8 +14,9 @@ import { UserContext } from "../services/userContext";
 import { useRouter } from "next/router";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
-import { MdVisibility, MdVisibilityOff } from "react-icons/md";
+import { MdVisibility, MdVisibilityOff, MdEmail, MdRefresh } from "react-icons/md";
 import Link from "next/link";
+import axios from "axios";
 import { styles } from "../styles/login-style";
 
 const Login = () => {
@@ -27,6 +28,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [lockoutInfo, setLockoutInfo] = useState(null);
   const [cooldownTimer, setCooldownTimer] = useState(0);
+  const [verificationRequired, setVerificationRequired] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const router = useRouter();
 
   // Handle URL error params (from OAuth failures)
@@ -76,6 +81,9 @@ const Login = () => {
 
     setError("");
     setLoading(true);
+    setVerificationRequired(false);
+    setUnverifiedEmail("");
+    setResendMessage("");
 
     try {
       const result = await login(username, password);
@@ -83,8 +91,13 @@ const Login = () => {
       if (result?.error) {
         setError(result.message);
         
+        // Handle email verification required
+        if (result.requiresVerification) {
+          setVerificationRequired(true);
+          setUnverifiedEmail(result.email || username);
+        }
         // Handle lockout/cooldown
-        if (result.cooldown || result.locked) {
+        else if (result.cooldown || result.locked) {
           setLockoutInfo({
             locked: result.locked,
             cooldown: result.cooldown,
@@ -104,6 +117,26 @@ const Login = () => {
       setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail) return;
+
+    setResending(true);
+    setResendMessage("");
+
+    try {
+      await axios.post("/api/v1/auth/resend-verification", {
+        email: unverifiedEmail,
+      });
+      setResendMessage("Verification email sent! Please check your inbox.");
+    } catch (err) {
+      setResendMessage(
+        err.response?.data?.message || "Failed to send email. Please try again."
+      );
+    } finally {
+      setResending(false);
     }
   };
 
@@ -152,6 +185,58 @@ const Login = () => {
           </Box>
         )}
 
+        {/* Email Verification Required Banner */}
+        {verificationRequired && (
+          <Box
+            sx={{
+              bgcolor: "rgba(167, 133, 235, 0.1)",
+              borderRadius: 2,
+              p: 2,
+              mb: 2,
+              border: "1px solid rgba(167, 133, 235, 0.3)",
+              textAlign: "center",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
+              <MdEmail size={24} color="#a785eb" style={{ marginRight: 8 }} />
+              <Typography sx={{ color: "#a785eb", fontWeight: "bold" }}>
+                Email Verification Required
+              </Typography>
+            </Box>
+            <Typography sx={{ color: "#aaa", fontSize: "14px", mb: 2 }}>
+              Please verify your email before logging in.
+            </Typography>
+            
+            {resendMessage && (
+              <Typography
+                sx={{
+                  color: resendMessage.includes("sent") ? "#51cf66" : "#ff6b6b",
+                  fontSize: "13px",
+                  mb: 1,
+                }}
+              >
+                {resendMessage}
+              </Typography>
+            )}
+            
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleResendVerification}
+              disabled={resending}
+              startIcon={resending ? <CircularProgress size={14} /> : <MdRefresh size={16} />}
+              sx={{
+                borderColor: "#a785eb",
+                color: "#a785eb",
+                fontSize: "13px",
+                "&:hover": { borderColor: "#b899f0", bgcolor: "rgba(167, 133, 235, 0.1)" },
+              }}
+            >
+              {resending ? "Sending..." : "Resend Verification Email"}
+            </Button>
+          </Box>
+        )}
+
         <Box sx={styles.formGroup}>
           <TextField
             type="text"
@@ -159,7 +244,11 @@ const Login = () => {
             variant="outlined"
             value={username}
             fullWidth
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setVerificationRequired(false);
+              setResendMessage("");
+            }}
             onKeyPress={handleKeyPress}
             disabled={isDisabled}
             sx={styles.textField}
@@ -199,7 +288,9 @@ const Login = () => {
           />
         </Box>
 
-        {error && <Typography sx={styles.error}>{error}</Typography>}
+        {error && !verificationRequired && (
+          <Typography sx={styles.error}>{error}</Typography>
+        )}
         
         {lockoutInfo?.remainingAttempts !== undefined && 
          !lockoutInfo.locked && 
