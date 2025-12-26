@@ -1,19 +1,22 @@
 import { useContext, useState } from "react";
 import { useRouter } from "next/router";
+import { Box, useMediaQuery, useTheme } from "@mui/material";
 
 import TopAppBar from "./TopAppBar";
-import MuiDrawer from "@mui/material/Drawer";
-import { styled } from "@mui/material/styles";
-
+import Sidebar from "./Sidebar";
 import { UserContext } from "../../services/userContext";
-import colors from "../../Themes/basic";
-import { Box } from "@mui/material";
+import { newColors } from "../../Themes/newColors";
+
+const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH_COLLAPSED = 64;
 
 export const Layout = ({ children }) => {
   const { user, loading } = useContext(UserContext);
   const router = useRouter();
-  const [drawerWidth, setDrawerWidth] = useState("20%");
-  const [open, setOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [pageLoading, setPageLoading] = useState(false);
 
   const handleRouteChange = () => {
@@ -27,78 +30,81 @@ export const Layout = ({ children }) => {
   router?.events?.on("routeChangeStart", handleRouteChange);
   router?.events?.on("routeChangeComplete", handleRouteChangeComplete);
 
-  const Drawer = styled(MuiDrawer, {
-    shouldForwardProp: (prop) => prop !== "open",
-  })(({ theme, open }) => {
-    const transitionDuration = 30000;
-    return {
-      flexShrink: 0,
-      boxSizing: "border-box",
-      backgroundColor: colors.lightBgColor,
-      overflowX: "hidden",
-      transition: theme.transitions.create(["width"], {
-        easing: theme.transitions.easing.easeInOut,
-        duration: open ? transitionDuration : transitionDuration / 2,
-      }),
-      width: open ? drawerWidth : "2.75rem",
-      "& .MuiDrawer-paper": {
-        overflowX: "hidden",
-        backgroundColor: colors.lightBgColor,
-        width: open ? drawerWidth : "2.75rem",
-        transition: theme.transitions.create(["right"], {
-          easing: theme.transitions.easing.easeInOut,
-          duration: open ? transitionDuration : transitionDuration / 2,
-        }),
-      },
-    };
-  });
-
-  const handleDrawerOpen = () => {
-    setOpen(true);
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
-  const handleDrawerClose = () => {
-    setOpen(false);
-  };
+  // Pages that don't need the sidebar
+  const noSidebarPages = ["/login", "/signup", "/forgot-password", "/reset-password"];
+  const isNoSidebarPage = noSidebarPages.some((page) =>
+    router.pathname.startsWith(page)
+  );
 
-  const handleDrawer = () => {
-    setOpen(!open);
-  };
-
-  const isChatOpened = router.pathname.startsWith("/chats/");
-
-  if (loading || pageLoading)
+  // Loading screen
+  if (loading || pageLoading) {
     return (
-      <div className="loadingScreen">
+      <Box
+        sx={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: newColors.background,
+        }}
+      >
         <div className="loader"></div>
-      </div>
+      </Box>
     );
+  }
 
+  // Redirect logged in users from login
   if (!!user && router.pathname === "/login") {
     router.push("/");
   }
-  if ((!user && !loading) || router.pathname === "/login")
-    return <div> {children}</div>;
-  if (user) {
+
+  // No sidebar for auth pages
+  if (!user || isNoSidebarPage) {
     return (
-      <div id="main">
-        {user ? (
-          <>
-            <div
-              className="rightContainer"
-              style={{ marginTop: isChatOpened ? "4rem" : "4rem" }}
-            >
-              <TopAppBar />
-
-              {children}
-            </div>
-          </>
-        ) : (
-          ""
-        )}
-
-        <div style={{}}></div>
-      </div>
+      <Box sx={{ bgcolor: newColors.background, minHeight: "100vh" }}>
+        {children}
+      </Box>
     );
   }
+
+  // Main layout with sidebar
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: newColors.background }}>
+      {/* Sidebar */}
+      <Sidebar open={sidebarOpen} onToggle={toggleSidebar} />
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+          width: isMobile
+            ? "100%"
+            : `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED}px)`,
+          transition: "width 0.2s ease-in-out",
+        }}
+      >
+        {/* Top App Bar */}
+        <TopAppBar onMenuClick={toggleSidebar} sidebarOpen={sidebarOpen} />
+
+        {/* Page Content */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            mt: "64px", // Height of app bar
+            overflow: "auto",
+          }}
+        >
+          {children}
+        </Box>
+      </Box>
+    </Box>
+  );
 };

@@ -1,248 +1,158 @@
-import { useState, useEffect, useRef, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useRouter } from "next/router";
-import { Box, IconButton } from "@mui/material";
-import io from "socket.io-client";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { UserContext } from "../../services/userContext";
-import ChatList from "../../components/chat/ChatList";
-import ChatHeader from "../../components/chat/ChatHeader";
-import ChatInput from "../../components/chat/ChatInput";
-import { MdArrowDownward, MdKeyboardDoubleArrowDown } from "react-icons/md";
+import { useChat } from "../../services/chatContext";
 import { newColors } from "../../Themes/newColors";
+import ChatWindow from "../../components/chat/ChatWindow";
+import GroupSettings from "../../components/chat/GroupSettings";
+import MessageSearch from "../../components/chat/MessageSearch";
+import axios from "axios";
 
-let socket;
-
-export default function ChatPage() {
+/**
+ * Direct Chat Page
+ * Opens a direct conversation with a specific user by their ID
+ */
+export default function DirectChatPage() {
   const router = useRouter();
   const { Id } = router.query;
-  const { user, token, getConversationWithFriend } = useContext(UserContext);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [friend, setFriend] = useState({});
-  const [conversationId, setConversationId] = useState(null);
-  const [isRoomJoined, setIsRoomJoined] = useState(false);
-  const messagesEndRef = useRef(null);
-  const chatContainerRef = useRef(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isFetching, setIsFetching] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [hasNextPage, setHasNextPage] = useState(true);
-  const [totalPages, setTotalPages] = useState(1);
-  const [showScrollButton, setShowScrollButton] = useState(false);
+  const { user, token } = useContext(UserContext);
+  const {
+    activeConversation,
+    setActiveConversation,
+    joinConversation,
+    fetchMessages,
+  } = useChat();
 
-  const chatContainerStyle = {
-    flex: 1,
-    overflowY: "auto",
-    scrollBehavior: "smooth",
-    transition: "all 0.5s ease-in-out",
-    WebkitOverflowScrolling: "touch",
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const messageContainerStyle = {
-    transition: "all 0.5s ease-in-out",
-    opacity: isFetching ? 0.7 : 1,
-  };
-
-  const fetchConversation = async (page = 1) => {
-    if (user && Id && !isFetching && (hasNextPage || page === 1)) {
-      setIsFetching(true);
-      try {
-        const response = await getConversationWithFriend(user._id, Id, {
-          page,
-        });
-
-        const prevHeight = chatContainerRef.current?.scrollHeight || 0;
-
-        setMessages((prevMessages) => {
-          const newMessages = [...response.messages.reverse(), ...prevMessages];
-
-          if (page !== 1) {
-            requestAnimationFrame(() => {
-              if (chatContainerRef.current) {
-                const newHeight = chatContainerRef.current.scrollHeight;
-                const scrollOffset = newHeight - prevHeight;
-
-                chatContainerRef.current.style.scrollBehavior = "auto";
-                chatContainerRef.current.scrollTop = scrollOffset;
-
-                requestAnimationFrame(() => {
-                  chatContainerRef.current.style.scrollBehavior = "smooth";
-                });
-              }
-            });
-          }
-
-          return newMessages;
-        });
-
-        setFriend(response.friend);
-        setConversationId(response.conversationId);
-        setCurrentPage(page);
-        setHasNextPage(response.pagination.hasNext);
-        setTotalPages(response.pagination.totalPages);
-
-        if (page === 1) {
-          setInitialLoadComplete(true);
-        }
-      } catch (error) {
-        console.error("Error fetching conversation:", error);
-      } finally {
-        setTimeout(() => {
-          setIsFetching(false);
-        }, 500);
-      }
-    }
-  };
-
+  // Create or get direct conversation with the user
   useEffect(() => {
-    socket = io(process.env.NEXT_PUBLIC_SOCKET_IO_URL, {
-      query: { token },
-    });
+    const initConversation = async () => {
+      if (!Id || !user || !token) return;
 
-    if (Id) fetchConversation();
+      setLoading(true);
+      setError(null);
 
-    return () => {
-      socket.disconnect();
+      try {
+        // Create or get direct conversation
+        const response = await axios.post(
+          "/api/v1/chat/conversations",
+          {
+            type: "direct",
+            participantId: Id,
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        const conversation = response.data.data.conversation;
+        setActiveConversation(conversation);
+        await joinConversation(conversation._id);
+        await fetchMessages(conversation._id);
+      } catch (err) {
+        console.error("Error initializing conversation:", err);
+        setError(err.response?.data?.message || "Failed to load conversation");
+      } finally {
+        setLoading(false);
+      }
     };
+
+    initConversation();
   }, [Id, user, token]);
 
+  // Cleanup on unmount
   useEffect(() => {
-    if (conversationId && !isRoomJoined) {
-      socket.emit("joinRoom", conversationId);
-      setIsRoomJoined(true);
-    }
-
-    socket.on("message", (message) => {
-      const isSender = message.sender === user._id;
-      const structured = {
-        _id: message._id,
-        receiver: friend,
-        sender: {
-          name: isSender ? user.name : friend.name,
-          avatarUrl: isSender ? user.photo : friend.photo,
-          _id: isSender ? user._id : friend._id,
-        },
-        text: message.text,
-        timestamp: message.timestamp,
-      };
-
-      setMessages((prevMessages) => [...prevMessages, structured]);
-    });
-
     return () => {
-      socket.off("message");
+      setActiveConversation(null);
     };
-  }, [conversationId, isRoomJoined, friend, user]);
+  }, []);
 
-  const handleScroll = (e) => {
-    const scrollTop = e.target.scrollTop;
-    const scrollHeight = e.target.scrollHeight;
-    const clientHeight = e.target.clientHeight;
-
-    setShowScrollButton(scrollHeight - scrollTop > clientHeight + 100);
-
-    if (Math.abs(scrollTop) < 50 && !isFetching && hasNextPage) {
-      const nextPage = currentPage + 1;
-      fetchConversation(nextPage);
-    }
-  };
-  useEffect(() => {
-    const chatContainer = chatContainerRef.current;
-    let scrollTimeout;
-
-    const throttledScroll = (e) => {
-      if (!scrollTimeout) {
-        scrollTimeout = setTimeout(() => {
-          handleScroll(e);
-          scrollTimeout = null;
-        }, 100);
-      }
-    };
-
-    chatContainer.addEventListener("scroll", throttledScroll);
-
-    return () => {
-      chatContainer.removeEventListener("scroll", throttledScroll);
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-    };
-  }, [currentPage, isFetching]);
-
-  useEffect(() => {
-    if (initialLoadComplete || messages.length === 0) {
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      });
-    }
-  }, [initialLoadComplete]);
-
-  useEffect(() => {
-    if (initialLoadComplete && messages.length > 0) {
-      const chatContainer = chatContainerRef.current;
-      if (!chatContainer) return;
-
-      const isNearBottom =
-        chatContainer.scrollHeight -
-          chatContainer.scrollTop -
-          chatContainer.clientHeight <
-        100;
-
-      if (isNearBottom) {
-        requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        });
-      }
-    }
-  }, [messages, initialLoadComplete]);
-
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      const messageData = {
-        sender: user._id,
-        receiver: Id,
-        text: newMessage,
-      };
-
-      socket.emit("sendMessage", messageData);
-      setNewMessage("");
-    }
+  const handleBack = () => {
+    router.back();
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Redirect if not logged in
+  if (!user) {
+    return (
+      <Box
+        sx={{
+          height: "calc(100vh - 64px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: newColors.background,
+        }}
+      >
+        <Typography sx={{ color: "#888" }}>Please log in to chat</Typography>
+      </Box>
+    );
+  }
 
-  return (
-    <Box sx={{ height: "90vh", display: "flex", flexDirection: "column" }}>
-      <ChatHeader back={router.back} friend={friend} />
-      <Box ref={chatContainerRef} style={chatContainerStyle}>
-        <Box style={messageContainerStyle}>
-          <ChatList
-            user={user}
-            messages={messages}
-            name={friend.name}
-            messagesEndRef={messagesEndRef}
-          />
+  // Loading state
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          height: "calc(100vh - 64px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: newColors.background,
+        }}
+      >
+        <CircularProgress sx={{ color: newColors.primary }} />
+      </Box>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Box
+        sx={{
+          height: "calc(100vh - 64px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: newColors.background,
+        }}
+      >
+        <Box sx={{ textAlign: "center" }}>
+          <Typography sx={{ color: "#ff6b6b", mb: 2 }}>{error}</Typography>
+          <Typography
+            sx={{ color: newColors.primary, cursor: "pointer" }}
+            onClick={handleBack}
+          >
+            Go back
+          </Typography>
         </Box>
       </Box>
+    );
+  }
 
-      {showScrollButton && (
-        <IconButton
-          onClick={scrollToBottom}
-          style={{
-            position: "fixed",
-            bottom: 100,
-            right: 20,
-            zIndex: 1000,
-            backgroundColor: newColors.background,
-          }}
-          color="primary"
-        >
-          <MdKeyboardDoubleArrowDown />
-        </IconButton>
-      )}
-      <ChatInput
-        newMessage={newMessage}
-        setNewMessage={setNewMessage}
-        sendMessage={sendMessage}
+  return (
+    <Box sx={{ height: "calc(100vh - 64px)", bgcolor: newColors.background }}>
+      <ChatWindow
+        conversation={activeConversation}
+        onBack={handleBack}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSearch={() => setSearchOpen(true)}
+      />
+
+      <GroupSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        conversation={activeConversation}
+        onUpdate={(updated) => setActiveConversation(updated)}
+      />
+
+      <MessageSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        conversationId={activeConversation?._id}
       />
     </Box>
   );

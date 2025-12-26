@@ -5,6 +5,7 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { Layout } from "../components/layout/Layout.component";
 import { UserProvider } from "../services/userContext";
+import { ChatProvider } from "../services/chatContext";
 import { newColors } from "../Themes/newColors";
 
 // Create the theme using the colors object
@@ -76,11 +77,13 @@ const theme = createTheme({
 export default function App({ Component, pageProps }) {
   return (
     <UserProvider>
-      <ThemeProvider theme={theme}>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
-      </ThemeProvider>
+      <ChatProvider>
+        <ThemeProvider theme={theme}>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </ThemeProvider>
+      </ChatProvider>
     </UserProvider>
   );
 }

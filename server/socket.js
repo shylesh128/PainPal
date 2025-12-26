@@ -1,297 +1,468 @@
 const socketIo = require("socket.io");
 const cookie = require("cookie");
-const User = require("./models/userModel");
 const jwt = require("jsonwebtoken");
-const Message = require("./models/messageModel");
-const connectionModel = require("./models/connectionModel");
-const authenticateSocket = require("./middlewares/authenticateSocket");
-const ChatMessage = require("./models/ChatMessage");
+
+const User = require("./models/userModel");
+const Conversation = require("./models/conversationModel");
+const chatService = require("./services/chatService");
+const messageService = require("./services/messageService");
+const presenceService = require("./services/presenceService");
+
 const secretKey = process.env.SECRET_KEY;
-const MessagePersonal = require("./models/Message");
 
+/**
+ * Socket.io Module
+ * Optimized real-time communication with namespaces
+ */
 module.exports = (httpServer) => {
-  const io = socketIo(httpServer);
+  const io = socketIo(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+    },
+  });
 
-  const activePairs = [];
-  const activeUsers = new Map();
-  const marvelCharacters = [];
+  // ==================== Authentication Middleware ====================
 
-  io.of("/api/chat").on("connection", async (socket) => {
+  const authenticateSocket = async (socket, next) => {
     try {
       const cookies = socket.handshake.headers.cookie;
       const parsedCookies = cookies ? cookie.parse(cookies) : {};
-      const userCookie = parsedCookies.pain;
+      const token = parsedCookies.pain;
 
-      if (!userCookie) {
-        console.log("User disconnected because username is undefined");
-        socket.disconnect(true);
-        return;
+      if (!token) {
+        return next(new Error("Authentication required"));
       }
 
-      const decoded = jwt.verify(userCookie, secretKey);
+      const decoded = jwt.verify(token, secretKey);
       const user = await User.findById(decoded.userId);
 
-      let userId = user.name;
-      let socketId = socket.id;
-
-      // Disconnect the old socket if the user is already connected
-      if (isUserAlreadyConnected(userId)) {
-        console.log(
-          `User ${userId} is already connected. Disconnecting old connection.`
-        );
-        const existingSocketId = getExistingSocketId(userId);
-
-        // Check if the socket with the existingSocketId exists before disconnecting
-        const existingSocket = io.of("/api/chat").sockets.get(existingSocketId);
-        if (existingSocket) {
-          existingSocket.disconnect(true);
-        } else {
-          console.log(`Socket with id ${existingSocketId} not found.`);
-        }
+      if (!user) {
+        return next(new Error("User not found"));
       }
 
-      // Create or add to a pair based on the current state
-      if (
-        activePairs.length === 0 ||
-        activePairs[activePairs.length - 1].length === 2
-      ) {
-        activePairs.push([socketId]);
-      } else {
-        activePairs[activePairs.length - 1].push(socketId);
-      }
-
-      let currentPair = activePairs[activePairs.length - 1];
-
-      socket.on("get active users", (callback) => {
-        callback(Array.from(activeUsers.values()));
-      });
-
-      activeUsers.set(socketId, userId);
-      console.log(`${userId} connected to chat in pair ${activePairs.length}`);
-
-      const newConnection = await connectionModel.create({
-        username: userId,
-        timeStamp: new Date().toISOString(),
-        text: "Connected to chat",
-        pair: activePairs.length,
-      });
-
-      io.of("/api/chat").emit("update users", Array.from(activeUsers.values()));
-
-      socket.on("disconnect", () => {
-        console.log(`${userId} disconnected from chat`);
-
-        // Check if the user is in the activeUsers map before deleting
-        if (activeUsers.has(socketId)) {
-          activeUsers.delete(socketId);
-        }
-
-        // Remove the user from the current pair
-        const index = currentPair.indexOf(socketId);
-        if (index !== -1) {
-          currentPair.splice(index, 1);
-        }
-
-        marvelCharacters.push(userId);
-        io.of("/api/chat").emit(
-          "update users",
-          Array.from(activeUsers.values())
-        );
-      });
-
-      socket.on("chat message", async (data) => {
-        const timestamp = new Date().toISOString();
-
-        // Save the message to the database
-        const message = new Message({
-          username: data.userId,
-          timeStamp: timestamp,
-          text: data.msg,
-          pair: activePairs.length,
-          to: getReceiverUsername(currentPair, socketId),
-        });
-
-        try {
-          await message.save();
-        } catch (error) {
-          console.error("Error saving message to the database:", error.message);
-        }
-
-        // Broadcast the message to all members of the current pair
-        currentPair.forEach((memberSocketId) => {
-          io.of("/api/chat").to(memberSocketId).emit("chat message", {
-            userId: data.userId,
-            msg: data.msg,
-            timestamp,
-          });
-        });
-      });
+      socket.user = user;
+      socket.userId = user._id.toString();
+      next();
     } catch (error) {
-      console.error("Error during socket connection:", error.message);
-      // Handle the error as needed
+      console.error("Socket auth error:", error.message);
+      next(new Error("Authentication failed"));
     }
+  };
+
+  // ==================== Main Chat Namespace ====================
+
+  const chatNamespace = io.of("/api/v1/chat");
+  chatNamespace.use(authenticateSocket);
+
+  chatNamespace.on("connection", async (socket) => {
+    const userId = socket.userId;
+    const user = socket.user;
+
+    console.log(`User ${user.name} connected to chat`);
+
+    // Set user online
+    await presenceService.setOnline(userId, socket.id);
+
+    // Join user's personal room for notifications
+    socket.join(`user:${userId}`);
+
+    // Notify friends of online status
+    broadcastPresenceUpdate(socket, userId, "online");
+
+    // ==================== Conversation Events ====================
+
+    /**
+     * Join a conversation room
+     */
+    socket.on("conversation:join", async (conversationId, callback) => {
+      try {
+        const conversation = await chatService.getConversation(
+          conversationId,
+          userId
+        );
+
+        if (!conversation) {
+          return callback?.({ error: "Conversation not found" });
+        }
+
+        // Leave previous active conversation
+        const currentRooms = Array.from(socket.rooms);
+        currentRooms.forEach((room) => {
+          if (room.startsWith("conv:") && room !== `conv:${conversationId}`) {
+            socket.leave(room);
+          }
+        });
+
+        // Join new conversation room
+        socket.join(`conv:${conversationId}`);
+
+        // Set active conversation for presence
+        await presenceService.setActiveConversation(userId, conversationId);
+
+        // Mark messages as delivered
+        await messageService.markAsDelivered(conversationId, userId);
+
+        callback?.({ success: true, conversation });
+      } catch (error) {
+        console.error("Join conversation error:", error);
+        callback?.({ error: error.message });
+      }
+    });
+
+    /**
+     * Leave a conversation room
+     */
+    socket.on("conversation:leave", async (conversationId) => {
+      socket.leave(`conv:${conversationId}`);
+      await presenceService.setActiveConversation(userId, null);
+      await presenceService.setTyping(userId, conversationId, false);
+    });
+
+    // ==================== Message Events ====================
+
+    /**
+     * Send a message
+     */
+    socket.on("message:send", async (data, callback) => {
+      try {
+        const { conversationId, content, replyTo } = data;
+
+        if (!content || content.trim().length === 0) {
+          return callback?.({ error: "Message content is required" });
+        }
+
+        // Save message
+        const message = await messageService.sendMessage(
+          conversationId,
+          userId,
+          content.trim(),
+          { replyTo }
+        );
+
+        // Stop typing indicator
+        await presenceService.setTyping(userId, conversationId, false);
+
+        // Broadcast to conversation room
+        chatNamespace.to(`conv:${conversationId}`).emit("message:receive", {
+          message,
+          conversationId,
+        });
+
+        // Send delivery confirmation to sender
+        callback?.({ success: true, message });
+
+        // Notify offline participants
+        const participantIds = await chatService.getParticipantIds(conversationId);
+        for (const participantId of participantIds) {
+          if (participantId !== userId) {
+            chatNamespace.to(`user:${participantId}`).emit("message:notification", {
+              conversationId,
+              message,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Send message error:", error);
+        callback?.({ error: error.message });
+      }
+    });
+
+    /**
+     * Mark messages as read
+     */
+    socket.on("message:read", async (data, callback) => {
+      try {
+        const { conversationId, messageIds } = data;
+
+        await messageService.markAsRead(conversationId, userId, messageIds);
+
+        // Notify other participants about read status
+        chatNamespace.to(`conv:${conversationId}`).emit("message:read", {
+          conversationId,
+          userId,
+          messageIds,
+          readAt: new Date(),
+        });
+
+        callback?.({ success: true });
+      } catch (error) {
+        console.error("Mark read error:", error);
+        callback?.({ error: error.message });
+      }
+    });
+
+    // ==================== Typing Events ====================
+
+    /**
+     * Start typing
+     */
+    socket.on("typing:start", async (conversationId) => {
+      await presenceService.setTyping(userId, conversationId, true);
+
+      socket.to(`conv:${conversationId}`).emit("typing:update", {
+        conversationId,
+        userId,
+        user: { _id: userId, name: user.name, photo: user.photo },
+        isTyping: true,
+      });
+    });
+
+    /**
+     * Stop typing
+     */
+    socket.on("typing:stop", async (conversationId) => {
+      await presenceService.setTyping(userId, conversationId, false);
+
+      socket.to(`conv:${conversationId}`).emit("typing:update", {
+        conversationId,
+        userId,
+        isTyping: false,
+      });
+    });
+
+    // ==================== Presence Events ====================
+
+    /**
+     * Get online users in a conversation
+     */
+    socket.on("presence:get", async (conversationId, callback) => {
+      try {
+        const online = await presenceService.getOnlineParticipants(conversationId);
+        const typing = await presenceService.getTypingUsers(conversationId);
+
+        callback?.({ online, typing });
+      } catch (error) {
+        callback?.({ error: error.message });
+      }
+    });
+
+    /**
+     * Update user status
+     */
+    socket.on("presence:status", async (status) => {
+      await presenceService.updateStatus(userId, status);
+      broadcastPresenceUpdate(socket, userId, status);
+    });
+
+    // ==================== Group Events ====================
+
+    /**
+     * Create a group
+     */
+    socket.on("group:create", async (data, callback) => {
+      try {
+        const { name, participantIds } = data;
+
+        const conversation = await chatService.createGroup(
+          userId,
+          name,
+          participantIds
+        );
+
+        await conversation.populate("participants.user", "name photo username");
+
+        // Notify all participants
+        for (const participant of conversation.participants) {
+          const pId = participant.user._id.toString();
+          chatNamespace.to(`user:${pId}`).emit("conversation:new", {
+            conversation,
+          });
+        }
+
+        callback?.({ success: true, conversation });
+      } catch (error) {
+        callback?.({ error: error.message });
+      }
+    });
+
+    /**
+     * Add participant to group
+     */
+    socket.on("group:addParticipant", async (data, callback) => {
+      try {
+        const { conversationId, participantId } = data;
+
+        const conversation = await chatService.addParticipant(
+          conversationId,
+          participantId,
+          userId
+        );
+
+        await conversation.populate("participants.user", "name photo username");
+
+        // Notify the conversation
+        chatNamespace.to(`conv:${conversationId}`).emit("group:updated", {
+          conversation,
+          action: "participantAdded",
+          participantId,
+        });
+
+        // Notify the new participant
+        chatNamespace.to(`user:${participantId}`).emit("conversation:new", {
+          conversation,
+        });
+
+        callback?.({ success: true, conversation });
+      } catch (error) {
+        callback?.({ error: error.message });
+      }
+    });
+
+    // ==================== Random Pairing Events ====================
+
+    /**
+     * Join random pairing
+     */
+    socket.on("random:join", async (callback) => {
+      try {
+        const conversation = await chatService.joinRandomPairing(userId);
+        await conversation.populate("participants.user", "name photo");
+
+        socket.join(`conv:${conversation._id}`);
+
+        if (conversation.pairStatus === "paired") {
+          // Notify both users
+          chatNamespace.to(`conv:${conversation._id}`).emit("random:paired", {
+            conversation,
+          });
+        }
+
+        callback?.({
+          success: true,
+          conversation,
+          status: conversation.pairStatus,
+        });
+      } catch (error) {
+        callback?.({ error: error.message });
+      }
+    });
+
+    /**
+     * End random pairing
+     */
+    socket.on("random:end", async (conversationId, callback) => {
+      try {
+        await chatService.endRandomPairing(conversationId, userId);
+
+        chatNamespace.to(`conv:${conversationId}`).emit("random:ended", {
+          conversationId,
+          endedBy: userId,
+        });
+
+        socket.leave(`conv:${conversationId}`);
+
+        callback?.({ success: true });
+      } catch (error) {
+        callback?.({ error: error.message });
+      }
+    });
+
+    // ==================== Disconnect ====================
+
+    socket.on("disconnect", async () => {
+      console.log(`User ${user.name} disconnected from chat`);
+
+      await presenceService.setOffline(userId);
+      broadcastPresenceUpdate(socket, userId, "offline");
+    });
   });
 
-  function getReceiverUsername(pair, senderSocketId) {
-    const receiverSocketId = pair.find(
-      (socketId) => socketId !== senderSocketId
-    );
-    return activeUsers.get(receiverSocketId) || "Unknown";
-  }
+  // ==================== Global Chat Namespace ====================
 
-  function isUserAlreadyConnected(username) {
-    return Array.from(activeUsers.values()).includes(username);
-  }
-
-  function getExistingSocketId(username) {
-    for (const [existingSocketId, existingUsername] of activeUsers) {
-      if (existingUsername === username) {
-        return existingSocketId;
-      }
-    }
-    return null;
-  }
-
-  const globalNamespace = io.of("/api/chat/global");
-  const globals = {}; // Store multiple global rooms and their users
-  const MAX_USERS = 50;
-
+  const globalNamespace = io.of("/api/v1/chat/global");
   globalNamespace.use(authenticateSocket);
 
   globalNamespace.on("connection", async (socket) => {
+    const userId = socket.userId;
+    const user = socket.user;
+
     try {
-      const user = socket.user;
-      const userId = user._id.toString();
-      const socketId = socket.id;
+      // Join or create global room
+      const room = await chatService.joinGlobalRoom(userId);
 
-      let currentGlobalId;
+      socket.join(`global:${room._id}`);
+      socket.globalRoomId = room._id.toString();
 
-      // If the user has already been assigned a global chat room
-      if (user.globalId && globals[user.globalId]) {
-        currentGlobalId = user.globalId;
-      } else {
-        // Find a global room with available space
-        let assigned = false;
-        for (const globalId in globals) {
-          if (globals[globalId].length < MAX_USERS) {
-            currentGlobalId = globalId;
-            globals[globalId].push({ userId, name: user.name, socketId });
-            assigned = true;
-            break;
-          }
-        }
+      // Notify room of new user
+      globalNamespace.to(`global:${room._id}`).emit("user:joined", {
+        user: { _id: userId, name: user.name, photo: user.photo },
+        participantCount: room.participants.length,
+      });
 
-        // If no room with available space, create a new global room
-        if (!assigned) {
-          currentGlobalId = `global-${Date.now()}`;
-          globals[currentGlobalId] = [{ userId, name: user.name, socketId }];
-        }
+      // Send room info to user
+      socket.emit("room:info", {
+        roomId: room._id,
+        participantCount: room.participants.length,
+      });
 
-        // Update user document with the assigned globalId
-        user.globalId = currentGlobalId;
-        await user.save();
-      }
+      /**
+       * Send global message
+       */
+      socket.on("message", async (content) => {
+        const message = await messageService.sendMessage(
+          room._id,
+          userId,
+          content,
+          { messageType: "text" }
+        );
 
-      // Emit the updated user count for the specific global room
-      globalNamespace.emit("userCount", globals[currentGlobalId].length);
-
-      socket.join(currentGlobalId);
-
-      socket.on("message", (msg) => {
-        globalNamespace.to(currentGlobalId).emit("message", {
-          user: user.name,
-          text: msg,
-          time: new Date(),
+        globalNamespace.to(`global:${room._id}`).emit("message", {
+          message,
+          user: { _id: userId, name: user.name, photo: user.photo },
         });
+      });
+
+      /**
+       * Get participant count
+       */
+      socket.on("getParticipants", async (callback) => {
+        const updatedRoom = await Conversation.findById(room._id);
+        callback?.({ count: updatedRoom?.participants.length || 0 });
       });
 
       socket.on("disconnect", async () => {
-        // Remove the user from the global room
-        const globalRoom = globals[currentGlobalId];
-        const userIndex = globalRoom.findIndex(
-          (user) => user.socketId === socketId
-        );
+        const roomId = socket.globalRoomId;
 
-        if (userIndex > -1) {
-          globalRoom.splice(userIndex, 1); // Remove user from room
-          globalNamespace
-            .to(currentGlobalId)
-            .emit("userCount", globalRoom.length);
+        // Remove user from global room
+        const conversation = await Conversation.findById(roomId);
+        if (conversation) {
+          await conversation.removeParticipant(userId);
 
-          // If user was the last in the global room, delete the room
-          if (globalRoom.length === 0) {
-            delete globals[currentGlobalId];
-          }
-        }
-
-        // Optionally, clear the globalId from the user document if they disconnect
-        if (user.globalId === socketId) {
-          user.globalId = null;
-          await user.save();
+          globalNamespace.to(`global:${roomId}`).emit("user:left", {
+            userId,
+            participantCount: conversation.participants.length,
+          });
         }
       });
     } catch (error) {
-      console.error("Error during socket connection:", error.message);
-      socket.emit("error", { message: "Connection error." });
-      socket.disconnect();
+      console.error("Global chat error:", error);
+      socket.emit("error", { message: "Failed to join global chat" });
     }
   });
 
-  io.use((socket, next) => {
-    // Perform authentication if required
-    // Example: Check token in socket.handshake.query
-    const token = socket.handshake.query.token;
-    if (token) {
-      // Validate token logic here
-      next();
-    } else {
-      next(new Error("Authentication error"));
-    }
-  });
+  // ==================== Helper Functions ====================
 
-  io.on("connection", (socket) => {
-    // Join a specific chat room
-    socket.on("joinRoom", (roomId) => {
-      socket.join(roomId);
-      // console.log(`User joined room: ${roomId}`);
-    });
+  /**
+   * Broadcast presence update to user's friends/conversations
+   */
+  async function broadcastPresenceUpdate(socket, userId, status) {
+    try {
+      // Get user's conversations to notify participants
+      const result = await chatService.getUserConversations(userId, { limit: 100 });
 
-    // Listen for messages from clients
-    socket.on("sendMessage", async (messageData) => {
-      const { sender, receiver, text } = messageData;
-
-      // Create a unique conversation ID (you could use a combination of sender and receiver IDs)
-      const conversationId =
-        sender < receiver ? `${sender}-${receiver}` : `${receiver}-${sender}`;
-
-      // Save the message to the database
-      const message = new MessagePersonal({
-        sender,
-        receiver,
-        text,
-        conversationId,
-      });
-
-      try {
-        await message.save();
-
-        // Broadcast the message to the receiver's room
-        io.to(conversationId).emit("message", {
-          sender,
-          text,
-          timestamp: new Date(),
-          _id: message._id,
+      for (const conv of result.conversations) {
+        const roomName = `conv:${conv._id}`;
+        socket.to(roomName).emit("presence:update", {
+          userId,
+          status,
+          lastSeen: status === "offline" ? new Date() : null,
         });
-      } catch (error) {
-        console.error("Error saving message:", error);
       }
-    });
-
-    // Handle disconnection
-    socket.on("disconnect", () => {
-      console.log("Client disconnected");
-    });
-  });
+    } catch (error) {
+      console.error("Broadcast presence error:", error);
+    }
+  }
 
   return io;
 };

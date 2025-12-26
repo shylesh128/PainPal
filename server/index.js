@@ -43,6 +43,7 @@ app
     server.use(`${version}/other`, require("./routes/otherRoutes"));
     server.use(`${version}/music`, require("./routes/musicRoutes"));
     server.use(`${version}/conversations`, require("./routes/messageRoutes"));
+    server.use(`${version}/chat`, require("./routes/chatRoutes"));
 
     server.get("*", (req, res) => {
       return handle(req, res);
