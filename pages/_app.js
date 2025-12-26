@@ -13,6 +13,7 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 
 import { Layout } from '../components/layout/Layout.component';
+import { UserProvider } from '../services/userContext';
 import { store } from '../store/store';
 import { newColors } from '../Themes/newColors';
 
@@ -138,11 +139,13 @@ export default function App({ Component, pageProps }) {
   return (
     <Provider store={store}>
       <CookiesProvider>
-        <ThemeProvider theme={theme}>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
-        </ThemeProvider>
+        <UserProvider>
+          <ThemeProvider theme={theme}>
+            <Layout>
+              <Component {...pageProps} />
+            </Layout>
+          </ThemeProvider>
+        </UserProvider>
       </CookiesProvider>
     </Provider>
   );

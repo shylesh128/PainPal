@@ -283,8 +283,8 @@ const userSchema = new mongoose.Schema({
 });
 
 // ==================== Indexes ====================
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
+// Note: email already has unique: true which creates an index automatically
+// Note: username already has unique: true + sparse which creates an index automatically
 userSchema.index({ 'friends.friendId': 1 });
 userSchema.index({ createdAt: -1 });
 

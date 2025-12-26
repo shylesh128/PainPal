@@ -131,7 +131,7 @@ const serverSchema = new mongoose.Schema({
 // ==================== Indexes ====================
 serverSchema.index({ name: 'text', description: 'text' });
 serverSchema.index({ ownerId: 1 });
-serverSchema.index({ inviteCode: 1 });
+// Note: inviteCode already has unique: true which creates an index automatically
 serverSchema.index({ isPrivate: 1 });
 serverSchema.index({ memberCount: -1 });
 serverSchema.index({ 'members.userId': 1 });

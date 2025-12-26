@@ -18,10 +18,8 @@ const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    // Use user ID if authenticated, otherwise IP
-    return req.user?.id || req.ip;
-  },
+  // Use default keyGenerator (handles IPv6 properly)
+  // If user is authenticated, we could use custom logic in middleware instead
 });
 
 /**
