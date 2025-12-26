@@ -16,7 +16,7 @@ import {
   Skeleton,
 } from "@mui/material";
 import { MdSearch, MdAdd, MdPeople, MdPerson, MdPublic } from "react-icons/md";
-import { useChat } from "../../services/chatContext";
+import { useChatStore } from "../../services/stores/chatStore";
 import { newColors } from "../../Themes/newColors";
 import OnlineStatus from "./OnlineStatus";
 
@@ -26,7 +26,7 @@ const ConversationList = ({ onSelectConversation, onCreateGroup }) => {
     fetchConversations,
     activeConversation,
     isUserOnline,
-  } = useChat();
+  } = useChatStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -338,4 +338,3 @@ const ConversationList = ({ onSelectConversation, onCreateGroup }) => {
 };
 
 export default ConversationList;
-

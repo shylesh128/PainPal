@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState } from "react";
 import {
   Box,
   Typography,
@@ -16,7 +16,7 @@ import {
   MdDelete,
   MdEdit,
 } from "react-icons/md";
-import { UserContext } from "../../services/userContext";
+import { useAuthStore } from "../../services/stores/authStore";
 import { newColors } from "../../Themes/newColors";
 
 /**
@@ -31,7 +31,7 @@ const MessageBubble = ({
   onEdit,
   isGroupChat = false,
 }) => {
-  const { user } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
   const [menuAnchor, setMenuAnchor] = useState(null);
 
   const isSender = message.sender?._id === user?._id;
@@ -303,4 +303,3 @@ const MessageBubble = ({
 };
 
 export default MessageBubble;
-

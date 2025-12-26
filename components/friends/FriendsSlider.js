@@ -1,5 +1,5 @@
-import { useContext, useEffect, useState, useCallback } from "react";
-import { UserContext } from "../../services/userContext";
+import { useEffect, useState, useCallback } from "react";
+import { useFriends, useAddFriend } from "../../services/hooks/useUser";
 import {
   Box,
   Card,
@@ -15,44 +15,30 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 
 const FriendsSlider = () => {
-  const { getFriends, addFriend } = useContext(UserContext);
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalFriends, setTotalFriends] = useState(0);
+  const [allFriends, setAllFriends] = useState([]);
+  const { data: friendsData, isLoading: loading } = useFriends(page, 3);
+  const addFriendMutation = useAddFriend();
 
-  const fetchFriends = useCallback(
-    async (page, limit = 3) => {
-      setLoading(true);
-      try {
-        const response = await getFriends(page, limit);
-
-        if (response?.data?.friends?.length > 0) {
-          setFriends((prevFriends) => {
-            const updatedFriends = [...prevFriends, ...response.data.friends];
-            const moreFriendsAvailable = updatedFriends.length < response.total;
-            setHasMore(moreFriendsAvailable);
-            return updatedFriends;
-          });
-          setTotalFriends(response.total);
-        }
-      } catch (error) {
-        console.error("Error fetching friends:", error);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    if (friendsData?.data?.friends) {
+      if (page === 1) {
+        setAllFriends(friendsData.data.friends);
+      } else {
+        setAllFriends((prev) => [...prev, ...friendsData.data.friends]);
       }
-    },
-    [getFriends]
-  );
+    }
+  }, [friendsData, page]);
+
+  const hasMore = allFriends.length < (friendsData?.total || 0);
 
   const handleCancelSuggestion = (friendId) => {
-    setFriends(friends.filter((friend) => friend.id !== friendId));
+    setAllFriends(allFriends.filter((friend) => friend._id !== friendId));
   };
 
   const handleAddFriend = async (friend) => {
     console.log(`Add friend with ID: `, friend);
-    const response = await addFriend(friend._id);
+    await addFriendMutation.mutateAsync(friend._id);
   };
 
   const handleSlideChange = (swiper) => {
@@ -60,13 +46,9 @@ const FriendsSlider = () => {
     console.log("isEnd", isEnd);
   };
 
-  useEffect(() => {
-    fetchFriends(page);
-  }, [page, fetchFriends]);
-
   return (
     <>
-      {friends.length > 0 && (
+      {allFriends.length > 0 && (
         <Box sx={{ width: "100%", marginTop: "30px" }}>
           <Typography
             variant="h6"
@@ -93,7 +75,7 @@ const FriendsSlider = () => {
               },
             }}
           >
-            {friends.map((friend) => (
+            {allFriends.map((friend) => (
               <SwiperSlide key={friend._id}>
                 <Card
                   sx={{
@@ -107,7 +89,7 @@ const FriendsSlider = () => {
                   }}
                 >
                   <Box sx={{ position: "absolute", top: 10, right: 10 }}>
-                    <IconButton onClick={() => handleCancelSuggestion(friend)}>
+                    <IconButton onClick={() => handleCancelSuggestion(friend._id)}>
                       <MdClose color="#f3f3f3" />
                     </IconButton>
                   </Box>
@@ -131,6 +113,7 @@ const FriendsSlider = () => {
                     variant="contained"
                     sx={{ marginTop: "10px" }}
                     onClick={() => handleAddFriend(friend)}
+                    disabled={addFriendMutation.isPending}
                   >
                     Add Friend
                   </Button>

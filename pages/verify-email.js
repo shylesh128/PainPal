@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import {
   Box,
@@ -8,9 +8,10 @@ import {
   Paper,
 } from "@mui/material";
 import { MdCheckCircle, MdError, MdEmail } from "react-icons/md";
-import axios from "axios";
-import { UserContext } from "../services/userContext";
+import api from "../services/api/axios";
+import { useAuthStore } from "../services/stores/authStore";
 import { newColors } from "../Themes/newColors";
+import Cookies from "js-cookie";
 
 /**
  * Email Verification Page
@@ -19,7 +20,7 @@ import { newColors } from "../Themes/newColors";
 export default function VerifyEmailPage() {
   const router = useRouter();
   const { token, email } = router.query;
-  const { setUser, setToken } = useContext(UserContext);
+  const { setUser } = useAuthStore();
 
   const [status, setStatus] = useState("loading"); // loading, success, error, no-token
   const [message, setMessage] = useState("");
@@ -43,7 +44,7 @@ export default function VerifyEmailPage() {
     setStatus("loading");
 
     try {
-      const response = await axios.post("/api/v1/auth/verify-email", {
+      const response = await api.post("/auth/verify-email", {
         token,
         email,
       });
@@ -53,7 +54,10 @@ export default function VerifyEmailPage() {
 
       // Auto-login: set the token and user
       if (response.data.token && response.data.user) {
-        setToken(response.data.token);
+        Cookies.set("pain", response.data.token, { expires: 1/48, path: "/" });
+        if (response.data.refreshToken) {
+          Cookies.set("refreshToken", response.data.refreshToken, { expires: 7, path: "/" });
+        }
         setUser(response.data.user);
 
         // Redirect to home after 2 seconds
@@ -78,7 +82,7 @@ export default function VerifyEmailPage() {
     setVerifying(true);
 
     try {
-      await axios.post("/api/v1/auth/resend-verification", { email });
+      await api.post("/auth/resend-verification", { email });
       setMessage("A new verification email has been sent. Please check your inbox.");
     } catch (error) {
       setMessage(
@@ -243,4 +247,3 @@ export default function VerifyEmailPage() {
     </Box>
   );
 }
-

@@ -1,13 +1,13 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Box, CircularProgress, Typography } from "@mui/material";
-import { UserContext } from "../../services/userContext";
-import { useChat } from "../../services/chatContext";
+import { useAuthStore } from "../../services/stores/authStore";
+import { useChatStore } from "../../services/stores/chatStore";
 import { newColors } from "../../Themes/newColors";
 import ChatWindow from "../../components/chat/ChatWindow";
 import GroupSettings from "../../components/chat/GroupSettings";
 import MessageSearch from "../../components/chat/MessageSearch";
-import axios from "axios";
+import api from "../../services/api/axios";
 
 /**
  * Direct Chat Page
@@ -16,13 +16,13 @@ import axios from "axios";
 export default function DirectChatPage() {
   const router = useRouter();
   const { Id } = router.query;
-  const { user, token } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
   const {
     activeConversation,
     setActiveConversation,
     joinConversation,
     fetchMessages,
-  } = useChat();
+  } = useChatStore();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,21 +32,17 @@ export default function DirectChatPage() {
   // Create or get direct conversation with the user
   useEffect(() => {
     const initConversation = async () => {
-      if (!Id || !user || !token) return;
+      if (!Id || !user) return;
 
       setLoading(true);
       setError(null);
 
       try {
         // Create or get direct conversation
-        const response = await axios.post(
-          "/api/v1/chat/conversations",
-          {
-            type: "direct",
-            participantId: Id,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const response = await api.post("/chat/conversations", {
+          type: "direct",
+          participantId: Id,
+        });
 
         const conversation = response.data.data.conversation;
         setActiveConversation(conversation);
@@ -61,14 +57,14 @@ export default function DirectChatPage() {
     };
 
     initConversation();
-  }, [Id, user, token]);
+  }, [Id, user, joinConversation, fetchMessages, setActiveConversation]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       setActiveConversation(null);
     };
-  }, []);
+  }, [setActiveConversation]);
 
   const handleBack = () => {
     router.back();

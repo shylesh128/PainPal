@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -11,8 +11,9 @@ import {
   Chip,
 } from "@mui/material";
 import { MdSend, MdShuffle, MdClose, MdRefresh } from "react-icons/md";
-import { UserContext } from "../services/userContext";
-import { useChat } from "../services/chatContext";
+import { useAuthStore } from "../services/stores/authStore";
+import { useChatStore } from "../services/stores/chatStore";
+import { useChatSocket } from "../services/hooks/useChat";
 import { newColors } from "../Themes/newColors";
 
 /**
@@ -20,14 +21,17 @@ import { newColors } from "../Themes/newColors";
  * 1:1 random pairing with strangers
  */
 export default function RandomChatPage() {
-  const { user } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
   const {
     socket,
     isConnected,
     joinRandomPairing,
     endRandomPairing,
     sendMessage,
-  } = useChat();
+  } = useChatStore();
+
+  // Initialize chat socket
+  useChatSocket();
 
   const [status, setStatus] = useState("idle"); // idle, searching, paired, ended
   const [partner, setPartner] = useState(null);

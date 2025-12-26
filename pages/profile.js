@@ -1,37 +1,22 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Box } from "@mui/material";
 import { useRouter } from "next/router";
-import { UserContext } from "../services/userContext";
+import { useUserDetails } from "../services/hooks/useUser";
 import AnalyticsSection from "../components/profile/AnalyticsSection";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import SliderCards from "../components/friends/FriendsSlider";
 import SuggestionSection from "../components/friends/SuggestionSection";
 
 const Profile = () => {
-  const [user, setUser] = useState(null);
   const router = useRouter();
-  const { fetchUserDetails, getSuggestions, getFriends } =
-    useContext(UserContext);
+  const { data: userDetailsData, isLoading: loading } = useUserDetails();
+  
   const [profilePic, setProfilePic] = useState("");
-  const [likes, setLikes] = useState([]);
-  const [tweets, setTweets] = useState([]);
-  const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(false);
 
-  const fetchUser = async () => {
-    setLoading(true);
-    const data = await fetchUserDetails();
-
-    setUser(data.userDetails);
-    setTweets(data.tweets);
-    setLikes(data.likedTweets);
-    setComments(data.userComments);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchUser();
-  }, []);
+  const user = userDetailsData?.userDetails || null;
+  const tweets = userDetailsData?.tweets || [];
+  const likes = userDetailsData?.likedTweets || [];
+  const comments = userDetailsData?.userComments || [];
 
   const handleProfilePicChange = (e) => {
     const file = e.target.files[0];
@@ -45,7 +30,7 @@ const Profile = () => {
   };
 
   const handleUpdateProfile = () => {
-    console.log("Updated Profile:", { name, email, profilePic });
+    console.log("Updated Profile:", { profilePic });
     router.push("/profile-updated");
   };
 

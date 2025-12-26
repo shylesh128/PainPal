@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Typography,
   Grid,
@@ -11,10 +11,9 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
 } from "@mui/material";
 import { MdEdit } from "react-icons/md";
-import { UserContext } from "../../services/userContext";
+import { useUpdateProfilePic } from "../../services/hooks/useUser";
 import { getColorForUsername } from "../../utils/alphaToColors";
 
 function ReplaceProfilePIcModal(props) {
@@ -83,9 +82,9 @@ function ReplaceProfilePIcModal(props) {
             fontWeight: 600,
             textTransform: "none",
           }}
-          disabled={!props.selectedImage}
+          disabled={!props.selectedImage || props.isLoading}
         >
-          Save
+          {props.isLoading ? "Saving..." : "Save"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -93,7 +92,7 @@ function ReplaceProfilePIcModal(props) {
 }
 
 const ProfileHeader = (props) => {
-  const { updateProfilePic } = useContext(UserContext);
+  const updateProfilePicMutation = useUpdateProfilePic();
   const [open, setOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState(props.profilePic);
   const [selectedImage, setSelectedImage] = useState([]);
@@ -118,9 +117,11 @@ const ProfileHeader = (props) => {
   };
 
   const handleSaveImage = async () => {
-    if (selectedImage.length > 0) {
-      const response = await updateProfilePic(selectedImage);
-      setImagePreview(response.data.user.photo);
+    if (selectedImage?.length > 0) {
+      const response = await updateProfilePicMutation.mutateAsync(selectedImage);
+      if (response?.data?.user?.photo) {
+        setImagePreview(response.data.user.photo);
+      }
     }
     setOpen(false);
   };
@@ -228,6 +229,7 @@ const ProfileHeader = (props) => {
             handleImageChange={handleImageChange}
             handleSaveImage={handleSaveImage}
             handleAvatarClick={handleAvatarClick}
+            isLoading={updateProfilePicMutation.isPending}
           ></ReplaceProfilePIcModal>
         </Paper>
       )}

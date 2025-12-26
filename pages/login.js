@@ -8,19 +8,19 @@ import {
   InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import { useState, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { TypeAnimation } from "react-type-animation";
-import { UserContext } from "../services/userContext";
+import { useAuthStore } from "../services/stores/authStore";
 import { useRouter } from "next/router";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
 import { MdVisibility, MdVisibilityOff, MdEmail, MdRefresh } from "react-icons/md";
 import Link from "next/link";
-import axios from "axios";
+import api from "../services/api/axios";
 import { styles } from "../styles/login-style";
 
 const Login = () => {
-  const { login, handleGoogleLogin, handleGithubLogin } = useContext(UserContext);
+  const { login, handleGoogleLogin, handleGithubLogin } = useAuthStore();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -88,7 +88,9 @@ const Login = () => {
     try {
       const result = await login(username, password);
       
-      if (result?.error) {
+      if (result?.success) {
+        router.push("/");
+      } else if (result?.error) {
         setError(result.message);
         
         // Handle email verification required
@@ -127,7 +129,7 @@ const Login = () => {
     setResendMessage("");
 
     try {
-      await axios.post("/api/v1/auth/resend-verification", {
+      await api.post("/auth/resend-verification", {
         email: unverifiedEmail,
       });
       setResendMessage("Verification email sent! Please check your inbox.");

@@ -5,14 +5,14 @@ import {
   TextField,
   CircularProgress,
 } from "@mui/material";
-import { useState, useContext } from "react";
-import { UserContext } from "../services/userContext";
+import { useState } from "react";
+import { useAuthStore } from "../services/stores/authStore";
 import Link from "next/link";
 import { styles } from "../styles/login-style";
 import { MdEmail, MdArrowBack } from "react-icons/md";
 
 const ForgotPassword = () => {
-  const { forgotPassword } = useContext(UserContext);
+  const { forgotPassword } = useAuthStore();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -214,4 +214,3 @@ const ForgotPassword = () => {
 };
 
 export default ForgotPassword;
-

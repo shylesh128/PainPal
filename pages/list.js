@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   List as MUIList,
   ListItem,
@@ -7,44 +7,27 @@ import {
   Avatar,
   CircularProgress,
 } from "@mui/material";
-import { UserContext } from "../services/userContext";
+import { useFriends } from "../services/hooks/useUser";
 import { useRouter } from "next/router";
 
 export default function List() {
   const router = useRouter();
-  const { user, getFriends } = useContext(UserContext);
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalFriends, setTotalFriends] = useState(0);
-
-  const fetchFriends = useCallback(
-    async (page, limit = 10) => {
-      setLoading(true);
-      try {
-        const response = await getFriends(page, limit);
-        if (response?.data?.friends?.length > 0) {
-          setFriends((prevFriends) => {
-            const updatedFriends = [...prevFriends, ...response.data.friends];
-            const moreFriendsAvailable = updatedFriends.length < response.total;
-            setHasMore(moreFriendsAvailable);
-            return updatedFriends;
-          });
-          setTotalFriends(response.total);
-        }
-      } catch (error) {
-        console.error("Error fetching friends:", error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [getFriends]
-  );
+  const [allFriends, setAllFriends] = useState([]);
+  
+  const { data: friendsData, isLoading: loading } = useFriends(page, 10);
 
   useEffect(() => {
-    fetchFriends(page);
-  }, [page, fetchFriends]);
+    if (friendsData?.data?.friends) {
+      if (page === 1) {
+        setAllFriends(friendsData.data.friends);
+      } else {
+        setAllFriends((prev) => [...prev, ...friendsData.data.friends]);
+      }
+    }
+  }, [friendsData, page]);
+
+  const hasMore = allFriends.length < (friendsData?.total || 0);
 
   const loadMoreFriends = () => {
     if (hasMore && !loading) {
@@ -63,13 +46,13 @@ export default function List() {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [loadMoreFriends, hasMore, loading]);
+  }, [hasMore, loading]);
 
   return (
     <div style={{ maxWidth: "600px", margin: "0 auto" }}>
       <h1>Friends</h1>
       <MUIList>
-        {friends.map((friend) => (
+        {allFriends.map((friend) => (
           <ListItem
             key={friend._id}
             style={{

@@ -1,4 +1,3 @@
-import { useContext } from "react";
 import { useRouter } from "next/router";
 import {
   AppBar,
@@ -13,14 +12,14 @@ import {
 } from "@mui/material";
 import { MdMenu, MdChat } from "react-icons/md";
 import AccountMenu from "./AccountMenu";
-import { UserContext } from "../../services/userContext";
-import { useChat } from "../../services/chatContext";
+import { useAuthStore } from "../../services/stores/authStore";
+import { useChatStore } from "../../services/stores/chatStore";
 import { newColors } from "../../Themes/newColors";
 
 const TopAppBar = ({ onMenuClick, sidebarOpen }) => {
   const router = useRouter();
-  const { user } = useContext(UserContext);
-  const { totalUnread } = useChat();
+  const user = useAuthStore((state) => state.user);
+  const totalUnread = useChatStore((state) => state.totalUnread);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 

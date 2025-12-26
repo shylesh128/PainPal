@@ -1,12 +1,11 @@
-import { useContext, useEffect, useState, useCallback } from "react";
-import { UserContext } from "../../services/userContext";
+import { useEffect, useState } from "react";
+import { useSuggestions, useAddFriend } from "../../services/hooks/useUser";
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Avatar,
-  Button,
   IconButton,
 } from "@mui/material";
 import { getColorForUsername } from "../../utils/alphaToColors";
@@ -18,46 +17,42 @@ import { useRouter } from "next/router";
 
 const SuggestionSection = () => {
   const router = useRouter();
-  const { getSuggestions, addFriend } = useContext(UserContext);
-
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [allSuggestions, setAllSuggestions] = useState([]);
   const [addFriendLoading, setAddFriendLoading] = useState(null);
+  
+  const { data: suggestionsData, isLoading: loading } = useSuggestions(page, 3);
+  const addFriendMutation = useAddFriend();
 
-  const fetchFriends = useCallback(
-    async (page, limit = 3) => {
-      setLoading(true);
-      try {
-        const response = await getSuggestions(page, limit);
-
-        if (response?.data?.friends?.length > 0) {
-          setFriends((prevFriends) => {
-            const updatedFriends = [...prevFriends, ...response.data.friends];
-            setHasMore(updatedFriends.length < response.total);
-            return updatedFriends;
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching friends:", error);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    if (suggestionsData?.data?.suggestions) {
+      if (page === 1) {
+        setAllSuggestions(suggestionsData.data.suggestions);
+      } else {
+        setAllSuggestions((prev) => [...prev, ...suggestionsData.data.suggestions]);
       }
-    },
-    [getSuggestions]
-  );
+    } else if (suggestionsData?.data?.friends) {
+      // Handle case where API returns 'friends' instead of 'suggestions'
+      if (page === 1) {
+        setAllSuggestions(suggestionsData.data.friends);
+      } else {
+        setAllSuggestions((prev) => [...prev, ...suggestionsData.data.friends]);
+      }
+    }
+  }, [suggestionsData, page]);
+
+  const hasMore = allSuggestions.length < (suggestionsData?.total || 0);
 
   const handleAddFriend = async (friend) => {
     try {
       setAddFriendLoading(friend._id);
-      const response = await addFriend(friend._id);
+      const response = await addFriendMutation.mutateAsync(friend._id);
 
       console.log("Add friend response:", response);
-      if (response.status === "success") {
+      if (response?.status === "success") {
         console.log(`Friend ${friend.name} added successfully`);
         // Remove friend from local state
-        setFriends((prevFriends) =>
+        setAllSuggestions((prevFriends) =>
           prevFriends.filter((f) => f._id !== friend._id)
         );
       } else {
@@ -71,7 +66,7 @@ const SuggestionSection = () => {
   };
 
   const handleCancelSuggestion = (friendId) => {
-    setFriends((prevFriends) =>
+    setAllSuggestions((prevFriends) =>
       prevFriends.filter((friend) => friend._id !== friendId)
     );
   };
@@ -80,10 +75,6 @@ const SuggestionSection = () => {
     console.log("View profile:", friend);
     router.push(`/friends/${friend._id}`);
   };
-
-  useEffect(() => {
-    fetchFriends(page);
-  }, [page, fetchFriends]);
 
   return (
     <Box sx={{ width: "100%", marginTop: "30px" }}>
@@ -107,7 +98,7 @@ const SuggestionSection = () => {
           },
         }}
       >
-        {friends.map((friend) => (
+        {allSuggestions.map((friend) => (
           <SwiperSlide key={friend._id}>
             <Card
               sx={{

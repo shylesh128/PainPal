@@ -15,7 +15,7 @@ import {
   Divider,
 } from "@mui/material";
 import { MdSearch, MdClose, MdArrowForward } from "react-icons/md";
-import { useChat } from "../../services/chatContext";
+import { useChatStore } from "../../services/stores/chatStore";
 import { newColors } from "../../Themes/newColors";
 
 // Debounce helper
@@ -37,7 +37,7 @@ const useDebounce = (callback, delay) => {
  * Search through messages in a conversation
  */
 const MessageSearch = ({ open, onClose, conversationId, onSelectMessage }) => {
-  const { searchMessages } = useChat();
+  const searchMessages = useChatStore((state) => state.searchMessages);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -267,4 +267,3 @@ const MessageSearch = ({ open, onClose, conversationId, onSelectMessage }) => {
 };
 
 export default MessageSearch;
-

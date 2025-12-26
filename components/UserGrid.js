@@ -1,11 +1,10 @@
 // UserGrid.js
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import DataGridStyle from "./DataGridStyle";
-import { UserContext } from "../services/userContext";
+import api from "../services/api/axios";
 
 const UserGrid = () => {
   const [users, setUsers] = useState([]);
-  const { user, fetchUsers } = useContext(UserContext);
 
   const columns = [
     { field: "id", headerName: "ID", width: 70 },
@@ -17,8 +16,8 @@ const UserGrid = () => {
   useEffect(() => {
     const fetchUsersLocal = async () => {
       try {
-        const response = await fetchUsers();
-        setUsers(response);
+        const response = await api.get("/users");
+        setUsers(response.data.data.users || []);
       } catch (error) {
         console.error("Error fetching users:", error);
       }

@@ -7,8 +7,8 @@ import {
   InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import { useState, useContext, useEffect } from "react";
-import { UserContext } from "../services/userContext";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "../services/stores/authStore";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import {
@@ -19,7 +19,7 @@ import {
 import { MdVisibility, MdVisibilityOff, MdLock, MdCheckCircle } from "react-icons/md";
 
 const ResetPassword = () => {
-  const { resetPassword } = useContext(UserContext);
+  const { resetPassword } = useAuthStore();
   const router = useRouter();
   const { token } = router.query;
 
@@ -269,4 +269,3 @@ const ResetPassword = () => {
 };
 
 export default ResetPassword;
-

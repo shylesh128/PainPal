@@ -1,4 +1,3 @@
-import { useContext, useState } from "react";
 import { useRouter } from "next/router";
 import {
   Box,
@@ -27,8 +26,8 @@ import {
   MdShuffle,
   MdLogout,
 } from "react-icons/md";
-import { UserContext } from "../../services/userContext";
-import { useChat } from "../../services/chatContext";
+import { useAuthStore } from "../../services/stores/authStore";
+import { useChatStore } from "../../services/stores/chatStore";
 import { newColors } from "../../Themes/newColors";
 
 const DRAWER_WIDTH = 240;
@@ -36,8 +35,8 @@ const DRAWER_WIDTH_COLLAPSED = 64;
 
 const Sidebar = ({ open, onToggle }) => {
   const router = useRouter();
-  const { user, logout } = useContext(UserContext);
-  const { totalUnread } = useChat();
+  const { user, logout } = useAuthStore();
+  const totalUnread = useChatStore((state) => state.totalUnread);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -338,4 +337,3 @@ const Sidebar = ({ open, onToggle }) => {
 };
 
 export default Sidebar;
-

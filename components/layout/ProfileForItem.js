@@ -1,14 +1,12 @@
-import { Avatar, Box, Button, Grid, Typography } from "@mui/material";
-
+import { Avatar, Box, Grid, Typography } from "@mui/material";
 import { useRouter } from "next/router";
-import React, { useContext } from "react";
-import { UserContext } from "../../services/userContext";
+import React from "react";
+import { useAuthStore } from "../../services/stores/authStore";
 import colors from "../../Themes/basic";
 import { newColors } from "../../Themes/newColors";
 
 const ProfileForItem = () => {
-  const { user } = useContext(UserContext);
-
+  const user = useAuthStore((state) => state.user);
   const router = useRouter();
 
   if (user) {

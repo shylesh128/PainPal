@@ -1,11 +1,12 @@
 import "../styles/globals.css";
 import { ThemeProvider, createTheme } from "@mui/material";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 /* slick-carousel styles */
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { Layout } from "../components/layout/Layout.component";
-import { UserProvider } from "../services/userContext";
-import { ChatProvider } from "../services/chatContext";
+import { queryClient } from "../services/api/queryClient";
 import { newColors } from "../Themes/newColors";
 
 // Create the theme using the colors object
@@ -76,14 +77,13 @@ const theme = createTheme({
 
 export default function App({ Component, pageProps }) {
   return (
-    <UserProvider>
-      <ChatProvider>
-        <ThemeProvider theme={theme}>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
-        </ThemeProvider>
-      </ChatProvider>
-    </UserProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }

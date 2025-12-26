@@ -1,11 +1,11 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import { Box, TextField, Button, Typography } from "@mui/material";
-import { UserContext } from "../services/userContext";
+import { useAuthStore } from "../services/stores/authStore";
 import ChatSection from "./ChatSection";
 
 const GlobalChat = () => {
-  const { user } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
   const messagesRef = useRef(null);
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -13,6 +13,8 @@ const GlobalChat = () => {
   const [activeUsers, setActiveUsers] = useState(0);
 
   useEffect(() => {
+    if (!user) return;
+
     const connectSocket = async () => {
       try {
         const globalId = user.globalId;
@@ -48,7 +50,11 @@ const GlobalChat = () => {
       }
     };
 
-    connectSocket();
+    const cleanup = connectSocket();
+
+    return () => {
+      if (cleanup) cleanup();
+    };
   }, [user]);
 
   const sendMessage = () => {
@@ -63,7 +69,6 @@ const GlobalChat = () => {
   }, [messages]);
 
   const scrollToBottom = () => {
-    console.log(messagesRef.current);
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     }

@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
-import { UserContext } from "../../services/userContext";
+import React, { useEffect, useState } from "react";
+import { useFriends } from "../../services/hooks/useUser";
 import {
   Box,
   TextField,
@@ -13,38 +13,24 @@ import {
 import { getColorForUsername } from "../../utils/alphaToColors";
 
 const FriendsSection = () => {
-  const { getFriends } = useContext(UserContext);
-
-  const [friends, setFriends] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalFriends, setTotalFriends] = useState(0);
+  const [allFriends, setAllFriends] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const { data: friendsData, isLoading: loading } = useFriends(page, 10);
 
-  const fetchFriends = useCallback(
-    async (page, limit = 10) => {
-      setLoading(true);
-      try {
-        const response = await getFriends(page, limit);
-
-        if (response?.data?.friends?.length > 0) {
-          setFriends((prevFriends) => {
-            const updatedFriends = [...prevFriends, ...response.data.friends];
-            const moreFriendsAvailable = updatedFriends.length < response.total;
-            setHasMore(moreFriendsAvailable);
-            return updatedFriends;
-          });
-          setTotalFriends(response.total);
-        }
-      } catch (error) {
-        console.error("Error fetching friends:", error);
-      } finally {
-        setLoading(false);
+  useEffect(() => {
+    if (friendsData?.data?.friends) {
+      if (page === 1) {
+        setAllFriends(friendsData.data.friends);
+      } else {
+        setAllFriends((prev) => [...prev, ...friendsData.data.friends]);
       }
-    },
-    [getFriends]
-  );
+    }
+  }, [friendsData, page]);
+
+  const hasMore = allFriends.length < (friendsData?.total || 0);
+  const totalFriends = friendsData?.total || 0;
 
   const handleScroll = (e) => {
     const threshold = 50;
@@ -58,15 +44,11 @@ const FriendsSection = () => {
     }
   };
 
-  useEffect(() => {
-    fetchFriends(page);
-  }, [page, fetchFriends]);
-
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
   };
 
-  const filteredFriends = friends.filter(
+  const filteredFriends = allFriends.filter(
     (friend) =>
       friend.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       friend.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -103,7 +85,7 @@ const FriendsSection = () => {
             ) : (
               filteredFriends.map((friend, index) => (
                 <Card
-                  key={index}
+                  key={friend._id || index}
                   sx={{
                     marginBottom: "10px",
                     display: "flex",

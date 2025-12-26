@@ -1,17 +1,21 @@
-import { useContext, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 
 import TopAppBar from "./TopAppBar";
 import Sidebar from "./Sidebar";
-import { UserContext } from "../../services/userContext";
+import { useAuthStore } from "../../services/stores/authStore";
+import { useChatSocket } from "../../services/hooks/useChat";
 import { newColors } from "../../Themes/newColors";
 
 const DRAWER_WIDTH = 240;
 const DRAWER_WIDTH_COLLAPSED = 64;
 
+// Pages that don't need authentication
+const AUTH_PAGES = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"];
+
 export const Layout = ({ children }) => {
-  const { user, loading } = useContext(UserContext);
+  const { user, loading, initialize, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -19,26 +23,48 @@ export const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [pageLoading, setPageLoading] = useState(false);
 
-  const handleRouteChange = () => {
-    setPageLoading(true);
-  };
+  // Check if current page is an auth page
+  const isAuthPage = AUTH_PAGES.some((page) => router.pathname.startsWith(page));
 
-  const handleRouteChangeComplete = () => {
-    setPageLoading(false);
-  };
+  // Initialize auth on mount
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
-  router?.events?.on("routeChangeStart", handleRouteChange);
-  router?.events?.on("routeChangeComplete", handleRouteChangeComplete);
+  // Initialize chat socket when authenticated
+  useChatSocket();
+
+  // Handle route change loading states
+  useEffect(() => {
+    const handleRouteChange = () => setPageLoading(true);
+    const handleRouteChangeComplete = () => setPageLoading(false);
+
+    router?.events?.on("routeChangeStart", handleRouteChange);
+    router?.events?.on("routeChangeComplete", handleRouteChangeComplete);
+    
+    return () => {
+      router?.events?.off("routeChangeStart", handleRouteChange);
+      router?.events?.off("routeChangeComplete", handleRouteChangeComplete);
+    };
+  }, [router]);
+
+  // Redirect logged in users away from auth pages
+  useEffect(() => {
+    if (!loading && isAuthenticated && isAuthPage) {
+      router.push("/");
+    }
+  }, [loading, isAuthenticated, isAuthPage, router]);
+
+  // Redirect unauthenticated users to login for protected pages
+  useEffect(() => {
+    if (!loading && !isAuthenticated && !isAuthPage) {
+      router.push("/login");
+    }
+  }, [loading, isAuthenticated, isAuthPage, router]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
-
-  // Pages that don't need the sidebar
-  const noSidebarPages = ["/login", "/signup", "/forgot-password", "/reset-password"];
-  const isNoSidebarPage = noSidebarPages.some((page) =>
-    router.pathname.startsWith(page)
-  );
 
   // Loading screen
   if (loading || pageLoading) {
@@ -57,16 +83,28 @@ export const Layout = ({ children }) => {
     );
   }
 
-  // Redirect logged in users from login
-  if (!!user && router.pathname === "/login") {
-    router.push("/");
-  }
-
-  // No sidebar for auth pages
-  if (!user || isNoSidebarPage) {
+  // Show auth pages without sidebar
+  if (isAuthPage) {
     return (
       <Box sx={{ bgcolor: newColors.background, minHeight: "100vh" }}>
         {children}
+      </Box>
+    );
+  }
+
+  // Don't render protected content until we know auth state
+  if (!isAuthenticated) {
+    return (
+      <Box
+        sx={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: newColors.background,
+        }}
+      >
+        <div className="loader"></div>
       </Box>
     );
   }

@@ -2,8 +2,8 @@ import { IconButton, Paper, Typography } from "@mui/material";
 import FilePreview from "./Tweet/FilePreview";
 import PostHeader from "./posts/PostHeader";
 import { MdComment, MdThumbUp } from "react-icons/md";
-import { useContext, useEffect, useState } from "react";
-import { UserContext } from "../services/userContext";
+import { useEffect, useState } from "react";
+import { useTweetStore } from "../services/stores/tweetStore";
 
 const PostContent = ({ text }) => (
   <Typography
@@ -53,10 +53,9 @@ function PostMoreOptions(props) {
 }
 
 const Post = ({ tweet }) => {
-  const { sendLike, user } = useContext(UserContext);
+  const sendLike = useTweetStore((state) => state.sendLike);
   const [likes, setLikes] = useState(tweet?.likes?.length || 0);
   const [comments, setComments] = useState(tweet?.comments || []);
-
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

@@ -1,11 +1,10 @@
-import { useState, useContext } from "react";
+import { useState } from "react";
 import {
   Box,
   Typography,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   Button,
   TextField,
   List,
@@ -24,18 +23,17 @@ import {
   MdPersonAdd,
   MdPersonRemove,
   MdExitToApp,
-  MdAdminPanelSettings,
 } from "react-icons/md";
-import { UserContext } from "../../services/userContext";
+import { useAuthStore } from "../../services/stores/authStore";
+import api from "../../services/api/axios";
 import { newColors } from "../../Themes/newColors";
-import axios from "axios";
 
 /**
  * Group Settings Component
  * Manage group name, participants, and admins
  */
 const GroupSettings = ({ open, onClose, conversation, onUpdate }) => {
-  const { user, token } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
 
   const [editingName, setEditingName] = useState(false);
   const [groupName, setGroupName] = useState(conversation?.name || "");
@@ -54,11 +52,7 @@ const GroupSettings = ({ open, onClose, conversation, onUpdate }) => {
 
     setLoading(true);
     try {
-      await axios.put(
-        `/api/v1/chat/groups/${conversation._id}`,
-        { name: groupName.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/chat/groups/${conversation._id}`, { name: groupName.trim() });
       onUpdate?.({ ...conversation, name: groupName.trim() });
       setEditingName(false);
     } catch (error) {
@@ -73,10 +67,7 @@ const GroupSettings = ({ open, onClose, conversation, onUpdate }) => {
 
     setLoading(true);
     try {
-      await axios.delete(
-        `/api/v1/chat/groups/${conversation._id}/participants/${participantId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.delete(`/chat/groups/${conversation._id}/participants/${participantId}`);
       onUpdate?.({
         ...conversation,
         participants: conversation.participants.filter(
@@ -95,11 +86,7 @@ const GroupSettings = ({ open, onClose, conversation, onUpdate }) => {
 
     setLoading(true);
     try {
-      await axios.post(
-        `/api/v1/chat/conversations/${conversation._id}/leave`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post(`/chat/conversations/${conversation._id}/leave`);
       onClose();
       // Redirect will be handled by parent
     } catch (error) {
@@ -309,4 +296,3 @@ const GroupSettings = ({ open, onClose, conversation, onUpdate }) => {
 };
 
 export default GroupSettings;
-

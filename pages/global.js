@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { MdSend, MdPeople, MdExitToApp } from "react-icons/md";
 import io from "socket.io-client";
-import { UserContext } from "../services/userContext";
+import { useAuthStore } from "../services/stores/authStore";
 import { newColors } from "../Themes/newColors";
 
 /**
@@ -20,7 +20,7 @@ import { newColors } from "../Themes/newColors";
  * Real-time global chat room for all connected users
  */
 export default function GlobalChatPage() {
-  const { user } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
 
   const [socket, setSocket] = useState(null);
   const [messages, setMessages] = useState([]);

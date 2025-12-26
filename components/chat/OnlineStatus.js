@@ -1,5 +1,5 @@
 import { Box, Typography, Tooltip } from "@mui/material";
-import { useChat } from "../../services/chatContext";
+import { useChatStore } from "../../services/stores/chatStore";
 
 /**
  * Online Status Badge Component
@@ -11,7 +11,8 @@ const OnlineStatus = ({
   size = "small",
   showLastSeen = true,
 }) => {
-  const { isUserOnline, getLastSeen } = useChat();
+  const isUserOnline = useChatStore((state) => state.isUserOnline);
+  const getLastSeen = useChatStore((state) => state.getLastSeen);
 
   const isOnline = isUserOnline(userId);
   const lastSeen = getLastSeen(userId);
@@ -84,4 +85,3 @@ const OnlineStatus = ({
 };
 
 export default OnlineStatus;
-

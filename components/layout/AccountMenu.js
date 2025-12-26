@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import {
   Avatar,
@@ -19,12 +19,12 @@ import {
   MdSecurity,
   MdHelp,
 } from "react-icons/md";
-import { UserContext } from "../../services/userContext";
+import { useAuthStore } from "../../services/stores/authStore";
 import { newColors } from "../../Themes/newColors";
 
 const AccountMenu = () => {
   const [anchorEl, setAnchorEl] = useState(null);
-  const { user, logout } = useContext(UserContext);
+  const { user, logout } = useAuthStore();
   const router = useRouter();
 
   const open = Boolean(anchorEl);

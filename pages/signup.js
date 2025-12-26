@@ -9,14 +9,14 @@ import {
   CircularProgress,
   Paper,
 } from "@mui/material";
-import { useState, useContext } from "react";
-import { UserContext } from "../services/userContext";
+import { useState } from "react";
+import { useAuthStore } from "../services/stores/authStore";
 import { useRouter } from "next/router";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
 import { MdVisibility, MdVisibilityOff, MdEmail, MdRefresh } from "react-icons/md";
 import Link from "next/link";
-import axios from "axios";
+import api from "../services/api/axios";
 import {
   styles,
   calculatePasswordStrength,
@@ -24,7 +24,7 @@ import {
 } from "../styles/login-style";
 
 const Signup = () => {
-  const { handleGoogleLogin, handleGithubLogin } = useContext(UserContext);
+  const { handleGoogleLogin, handleGithubLogin } = useAuthStore();
   const [formData, setFormData] = useState({
     name: "",
     username: "",
@@ -97,7 +97,7 @@ const Signup = () => {
     setError("");
 
     try {
-      const response = await axios.post("/api/v1/auth/signup", {
+      const response = await api.post("/auth/signup", {
         username: formData.username,
         email: formData.email,
         password: formData.password,
@@ -120,7 +120,7 @@ const Signup = () => {
     setResendMessage("");
 
     try {
-      await axios.post("/api/v1/auth/resend-verification", {
+      await api.post("/auth/resend-verification", {
         email: registeredEmail,
       });
       setResendMessage("Verification email sent! Please check your inbox.");

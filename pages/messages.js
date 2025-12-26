@@ -1,14 +1,15 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Autocomplete, Chip, Avatar, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { UserContext } from "../services/userContext";
-import { useChat } from "../services/chatContext";
+import { useAuthStore } from "../services/stores/authStore";
+import { useChatStore } from "../services/stores/chatStore";
+import { useFriends } from "../services/hooks/useUser";
+import api from "../services/api/axios";
 import { newColors } from "../Themes/newColors";
 import ConversationList from "../components/chat/ConversationList";
 import ChatWindow from "../components/chat/ChatWindow";
 import GroupSettings from "../components/chat/GroupSettings";
 import MessageSearch from "../components/chat/MessageSearch";
-import axios from "axios";
 
 /**
  * Messages Page
@@ -16,13 +17,13 @@ import axios from "axios";
  */
 export default function MessagesPage() {
   const router = useRouter();
-  const { user, token } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
   const {
     activeConversation,
     setActiveConversation,
     joinConversation,
     fetchMessages,
-  } = useChat();
+  } = useChatStore();
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -35,8 +36,11 @@ export default function MessagesPage() {
   // Create group form
   const [groupName, setGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
-  const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Use TanStack Query for friends
+  const { data: friendsData } = useFriends(1, 100);
+  const friends = friendsData?.data?.friends || [];
 
   // Redirect if not logged in
   useEffect(() => {
@@ -44,22 +48,6 @@ export default function MessagesPage() {
       router.push("/login");
     }
   }, [user, router]);
-
-  // Fetch friends for group creation
-  useEffect(() => {
-    const fetchFriends = async () => {
-      if (!token) return;
-      try {
-        const response = await axios.get("/api/v1/users/me/friends", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setFriends(response.data.data?.friends || response.data.data || []);
-      } catch (error) {
-        console.error("Error fetching friends:", error);
-      }
-    };
-    fetchFriends();
-  }, [token]);
 
   // Handle URL-based conversation selection
   useEffect(() => {
@@ -90,15 +78,11 @@ export default function MessagesPage() {
 
     setLoading(true);
     try {
-      const response = await axios.post(
-        "/api/v1/chat/conversations",
-        {
-          type: "group",
-          name: groupName.trim(),
-          participantIds: selectedMembers.map((m) => m._id),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await api.post("/chat/conversations", {
+        type: "group",
+        name: groupName.trim(),
+        participantIds: selectedMembers.map((m) => m._id),
+      });
 
       const conversation = response.data.data.conversation;
       setActiveConversation(conversation);
@@ -335,4 +319,3 @@ function CreateGroupDialog({
     </Dialog>
   );
 }
-

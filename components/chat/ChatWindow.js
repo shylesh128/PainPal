@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -15,8 +15,8 @@ import {
   MdClose,
   MdSearch,
 } from "react-icons/md";
-import { useChat } from "../../services/chatContext";
-import { UserContext } from "../../services/userContext";
+import { useChatStore } from "../../services/stores/chatStore";
+import { useAuthStore } from "../../services/stores/authStore";
 import { newColors } from "../../Themes/newColors";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
@@ -27,7 +27,7 @@ import OnlineStatus from "./OnlineStatus";
  * Main chat area with messages, input, and real-time features
  */
 const ChatWindow = ({ conversation, onBack, onOpenSettings, onOpenSearch }) => {
-  const { user } = useContext(UserContext);
+  const user = useAuthStore((state) => state.user);
   const {
     messages,
     fetchMessages,
@@ -39,7 +39,7 @@ const ChatWindow = ({ conversation, onBack, onOpenSettings, onOpenSearch }) => {
     leaveConversation,
     loadingMessages,
     isUserOnline,
-  } = useChat();
+  } = useChatStore();
 
   const [inputValue, setInputValue] = useState("");
   const [replyTo, setReplyTo] = useState(null);
@@ -353,7 +353,7 @@ const ChatWindow = ({ conversation, onBack, onOpenSettings, onOpenSearch }) => {
         }}
       >
         <TextField
-          ref={inputRef}
+          inputRef={inputRef}
           fullWidth
           multiline
           maxRows={4}
@@ -406,4 +406,3 @@ const ChatWindow = ({ conversation, onBack, onOpenSettings, onOpenSearch }) => {
 };
 
 export default ChatWindow;
-

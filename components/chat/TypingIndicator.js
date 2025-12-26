@@ -1,5 +1,5 @@
 import { Box, Typography, keyframes } from "@mui/material";
-import { useChat } from "../../services/chatContext";
+import { useChatStore } from "../../services/stores/chatStore";
 
 // Bouncing dot animation
 const bounce = keyframes`
@@ -16,7 +16,9 @@ const bounce = keyframes`
  * Shows animated dots when users are typing
  */
 const TypingIndicator = ({ conversationId }) => {
-  const { getTypingUsersForConversation } = useChat();
+  const getTypingUsersForConversation = useChatStore(
+    (state) => state.getTypingUsersForConversation
+  );
 
   const typingUsers = getTypingUsersForConversation(conversationId);
 
@@ -79,4 +81,3 @@ const TypingIndicator = ({ conversationId }) => {
 };
 
 export default TypingIndicator;
-
