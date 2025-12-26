@@ -6,7 +6,7 @@ import { UserContext } from "../../services/userContext";
 import ChatList from "../../components/chat/ChatList";
 import ChatHeader from "../../components/chat/ChatHeader";
 import ChatInput from "../../components/chat/ChatInput";
-import { MdArrowDownward, MdKeyboardDoubleArrowDown } from "react-icons/md";
+import { MdKeyboardDoubleArrowDown } from "react-icons/md";
 import { newColors } from "../../Themes/newColors";
 
 let socket;

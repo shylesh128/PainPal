@@ -17,8 +17,12 @@ const {
 } = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authmiddleware");
 const { fileMiddleware } = require("../middlewares/filemiddleware");
+const { getTexts, addBulkTexts } = require("../controllers/testingController");
 
 router.get("/", getUsers);
+
+router.get("/test/users", getTexts);
+router.post("/test/users/bulk", addBulkTexts);
 
 router.post("/", addUser);
 router.post("/bulk", addUsers);
