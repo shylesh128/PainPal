@@ -5,14 +5,30 @@ const User = require("../models/userModel");
 const DeviceLog = require("../models/deviceModel");
 const useragent = require("useragent");
 const { getClientIp } = require("../utils/clientIp");
-const jwt = require("jsonwebtoken");
+const tokenService = require("../utils/tokenService");
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
-const secretKey = process.env.SECRET_KEY;
 
+/**
+ * Get device info from request
+ */
+const getDeviceInfo = (req) => {
+  const agent = useragent.parse(req.headers["user-agent"]);
+  const ip = getClientIp(req);
+  return {
+    device: agent.device?.toString() || "unknown",
+    os: agent.os?.toString() || "unknown",
+    browser: agent.toAgent() || "unknown",
+    ip: ip || "unknown",
+  };
+};
+
+/**
+ * Initiate Google OAuth flow
+ */
 const googleOauth = catchAsync(async (req, res, next) => {
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: "offline",
@@ -24,9 +40,15 @@ const googleOauth = catchAsync(async (req, res, next) => {
   res.redirect(authUrl);
 });
 
+/**
+ * Handle Google OAuth callback
+ */
 const googleOauthCallback = catchAsync(async (req, res, next) => {
   const code = req.query.code;
-  const agent = useragent.parse(req.headers["user-agent"]);
+
+  if (!code) {
+    return res.redirect("/login?error=google_auth_failed");
+  }
 
   try {
     const { tokens } = await oAuth2Client.getToken(code);
@@ -43,46 +65,63 @@ const googleOauthCallback = catchAsync(async (req, res, next) => {
     let user = await User.findOne({ email: userInfo.data.email });
 
     if (!user) {
+      // Create new user
       user = await User.create({
         name: userInfo.data.name,
         email: userInfo.data.email,
         isOAuth: true,
+        photo: userInfo.data.picture,
+        globalId: `google_${userInfo.data.id}`,
       });
     } else {
+      // Update existing user
       user.isOAuth = true;
+      if (!user.photo && userInfo.data.picture) {
+        user.photo = userInfo.data.picture;
+      }
+      if (!user.globalId) {
+        user.globalId = `google_${userInfo.data.id}`;
+      }
       await user.save();
     }
 
-    const ip = getClientIp(req);
+    // Generate tokens using tokenService
+    const deviceInfo = getDeviceInfo(req);
+    const authTokens = await tokenService.generateTokenPair(user._id, deviceInfo);
 
+    // Log device access
+    const agent = useragent.parse(req.headers["user-agent"]);
+    const ip = getClientIp(req);
     const deviceLog = new DeviceLog({
       user: user._id,
       device: {
-        device: agent.device || "unknown",
-        os: agent.os || "unknown",
+        device: agent.device?.toString() || "unknown",
+        os: agent.os?.toString() || "unknown",
         browser: agent.toAgent() || "unknown",
       },
       ip: ip || "unknown",
     });
-
     await deviceLog.save();
 
-    const token = jwt.sign({ userId: user._id }, secretKey, {
-      expiresIn: "9999999d",
+    // Set cookies
+    res.cookie("pain", authTokens.accessToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 30 * 60 * 1000, // 30 minutes
     });
 
-    res.cookie("pain", token);
-    res.redirect(`/`);
+    res.cookie("refreshToken", authTokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
-    // res.status(200).json({
-    //   status: "success",
-    //   message: "SSO login successful",
-    //   token: token,
-    //   user: user,
-    // });
+    res.redirect("/");
   } catch (error) {
     console.error("Error retrieving tokens:", error);
-    res.status(500).send("Authentication failed");
+    res.redirect("/login?error=google_auth_failed");
   }
 });
 
